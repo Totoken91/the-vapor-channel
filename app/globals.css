@@ -1,20 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  /* Weather Channel broadcast palette */
-  --wc-sky-top: #3a6aa5;
-  --wc-sky-mid: #5a8fc8;
-  --wc-sky-bot: #7aa8d8;
-  --wc-panel-bg: rgba(12, 25, 70, 0.92);
-  --wc-panel-border: rgba(70, 120, 200, 0.6);
-  --wc-panel-header: #1a3a7a;
+  /* Weather Channel broadcast palette — vibrant saturated blues like the ref */
+  --wc-sky-top: #2a5a9a;
+  --wc-sky-mid: #4a8ad0;
+  --wc-sky-bot: #6aa8e8;
+  --wc-panel-bg: rgba(15, 40, 120, 0.92);
+  --wc-panel-border: rgba(80, 144, 216, 0.7);
+  --wc-panel-header: #1a3a80;
   --wc-gold: #ffd700;
   --wc-yellow: #ffcc00;
   --wc-white: #ffffff;
   --wc-cyan: #88ddff;
   --wc-blue-text: #aaccff;
   --wc-logo-bg: #1a4a9a;
-  --wc-logo-border: #6699cc;
+  --wc-logo-border: #7ab0e8;
 }
 
 body {
@@ -22,7 +22,7 @@ body {
   padding: 0;
   background: #000;
   color: var(--wc-white);
-  font-family: "Share Tech Mono", "Courier New", monospace;
+  font-family: "Arial", "Helvetica Neue", sans-serif;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -33,19 +33,20 @@ body {
 /* ===== Broadcast panel ===== */
 .broadcast-panel {
   background: var(--wc-panel-bg);
-  border: 2px solid var(--wc-panel-border);
-  border-radius: 3px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  border: 3px solid var(--wc-panel-border);
+  border-radius: 4px;
+  box-shadow: 0 3px 15px rgba(0, 0, 0, 0.4);
 }
 
 .panel-header {
-  background: linear-gradient(to bottom, #2a5aaa, #152e6a);
-  border-bottom: 2px solid var(--wc-panel-border);
-  padding: 5px 12px;
-  font-family: "VT323", "Courier New", monospace;
-  letter-spacing: 0.08em;
+  background: linear-gradient(to bottom, #3068b8, #1a3a80);
+  border-bottom: 3px solid var(--wc-panel-border);
+  padding: 8px 18px;
+  font-family: "Arial Black", "Impact", sans-serif;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--wc-white);
+  font-weight: 900;
 }
 
 /* ===== Cloud animation ===== */

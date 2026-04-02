@@ -93,32 +93,37 @@ vec2 tapeWobble(vec2 uv, float t) {
   return uv;
 }
 
-// ============ HEAVY CHROMA BLUR (the key VHS look — colors bleeding) ============
+// ============ CHROMA BLUR (colors bleeding into each other) ============
 
 vec3 chromaBleed(vec2 uv) {
   vec2 px = 1.0 / u_res;
 
-  // Luma (Y): stays sharp — sample at center only
-  float y = rgb2yiq(texture2D(u_tex, uv).rgb).x;
+  // Luma (Y): slightly blurred (not perfectly sharp — analog signal)
+  vec3 yAcc = vec3(0.0);
+  float yWeight = 0.0;
+  for (int i = -2; i <= 2; i++) {
+    float w = exp(-0.3 * float(i * i));
+    yAcc += texture2D(u_tex, uv + vec2(float(i) * px.x * 1.5, 0.0)).rgb * w;
+    yWeight += w;
+  }
+  float y = rgb2yiq(yAcc / yWeight).x;
 
-  // I channel: WIDE blur + shifted right (chroma delay in analog signal)
-  // This is what makes colors "bleed" into each other
+  // I channel: moderate blur + shifted right (chroma delay)
   vec3 iAcc = vec3(0.0);
   float iWeight = 0.0;
-  for (int i = -8; i <= 8; i++) {
-    float w = exp(-0.04 * float(i * i)); // gaussian-ish
-    // Shift RIGHT by 5 pixels (analog chroma delay)
-    iAcc += texture2D(u_tex, uv + vec2(float(i) * px.x * 3.0 + px.x * 5.0, 0.0)).rgb * w;
+  for (int i = -6; i <= 6; i++) {
+    float w = exp(-0.05 * float(i * i));
+    iAcc += texture2D(u_tex, uv + vec2(float(i) * px.x * 2.5 + px.x * 3.0, 0.0)).rgb * w;
     iWeight += w;
   }
   float iq_i = rgb2yiq(iAcc / iWeight).y;
 
-  // Q channel: EVEN WIDER blur + shifted further right
+  // Q channel: wider blur + shifted further right
   vec3 qAcc = vec3(0.0);
   float qWeight = 0.0;
-  for (int i = -12; i <= 12; i++) {
-    float w = exp(-0.025 * float(i * i));
-    qAcc += texture2D(u_tex, uv + vec2(float(i) * px.x * 4.0 + px.x * 10.0, 0.0)).rgb * w;
+  for (int i = -8; i <= 8; i++) {
+    float w = exp(-0.035 * float(i * i));
+    qAcc += texture2D(u_tex, uv + vec2(float(i) * px.x * 3.0 + px.x * 6.0, 0.0)).rgb * w;
     qWeight += w;
   }
   float iq_q = rgb2yiq(qAcc / qWeight).z;
@@ -148,51 +153,57 @@ void main() {
 
   // --- 4. Slight chromatic aberration (RGB fringing) ---
   vec2 px = 1.0 / u_res;
-  float ca = 1.0 + 0.8 * length(uv - 0.5);
+  float ca = 0.8 + 0.5 * length(uv - 0.5);
   col.r = chromaBleed(uv + vec2(px.x * ca, 0.0)).r;
   col.b = chromaBleed(uv - vec2(px.x * ca, 0.0)).b;
 
-  // --- 5. Overall softness (slight blur to simulate analog) ---
-  vec3 blur = vec3(0.0);
-  blur += texture2D(u_tex, uv + vec2(px.x, 0.0)).rgb;
-  blur += texture2D(u_tex, uv - vec2(px.x, 0.0)).rgb;
-  blur += texture2D(u_tex, uv + vec2(0.0, px.y)).rgb;
-  blur += texture2D(u_tex, uv - vec2(0.0, px.y)).rgb;
-  blur *= 0.25;
-  col = mix(col, blur, 0.15); // 15% softness
+  // --- 5. HEAVY OVERALL SOFTNESS (analog signal is blurry!) ---
+  // Multi-tap Gaussian blur in both directions
+  vec3 blurred = vec3(0.0);
+  float bWeight = 0.0;
+  for (int bx = -3; bx <= 3; bx++) {
+    for (int by = -2; by <= 2; by++) {
+      float w = exp(-0.15 * float(bx * bx + by * by));
+      blurred += texture2D(u_tex, uv + vec2(float(bx) * px.x * 1.5, float(by) * px.y * 1.5)).rgb * w;
+      bWeight += w;
+    }
+  }
+  blurred /= bWeight;
+  col = mix(col, blurred, 0.45); // 45% softness — VHS is BLURRY
 
-  // --- 6. HEAVY GRAIN (big, visible, like real VHS) ---
-  // Low frequency = big chunky grain (not fine noise)
-  float grain1 = hash2(floor(gl_FragCoord.xy * 0.5) * 2.0 + ft * 137.0); // 2x2 pixel blocks
-  float grain2 = hash2(floor(gl_FragCoord.xy * 0.25) * 4.0 + ft * 73.0); // 4x4 pixel blocks
-  float grain = mix(grain1, grain2, 0.4);
-  col += (grain - 0.5) * 0.14; // Strong grain
+  // --- 6. HEAVY GRAIN (big chunky grain like real VHS) ---
+  float grain1 = hash2(floor(gl_FragCoord.xy * 0.3) * 3.33 + ft * 137.0); // ~3x3 pixel blocks
+  float grain2 = hash2(floor(gl_FragCoord.xy * 0.15) * 6.67 + ft * 73.0); // ~7x7 pixel blocks
+  float grain3 = hash2(gl_FragCoord.xy * 0.8 + ft * 211.0); // Fine grain
+  float grain = grain3 * 0.3 + grain1 * 0.4 + grain2 * 0.3;
+  col += (grain - 0.5) * 0.18; // Very visible grain
 
-  // --- 7. Very subtle scanlines (barely visible, like the ref) ---
+  // --- 7. Scanlines (barely perceptible, ref has almost none) ---
   float scanY = uv.y * u_res.y;
   float scanline = 0.5 + 0.5 * sin(scanY * 3.14159);
-  col *= 0.97 + 0.03 * scanline; // Only 3% modulation
+  col *= 0.985 + 0.015 * scanline; // 1.5% modulation — almost invisible
 
-  // --- 8. Very light vignette (ref barely has any) ---
+  // --- 8. Very subtle vignette ---
   vec2 vigUV = v_uv * (1.0 - v_uv);
-  float vignette = vigUV.x * vigUV.y * 30.0;
-  vignette = clamp(pow(vignette, 0.5), 0.0, 1.0);
-  col *= mix(0.85, 1.0, vignette); // Light darkening at extreme edges only
+  float vignette = vigUV.x * vigUV.y * 35.0;
+  vignette = clamp(pow(vignette, 0.6), 0.0, 1.0);
+  col *= mix(0.92, 1.0, vignette);
 
-  // --- 9. Warm color temperature ---
-  col *= vec3(1.04, 1.00, 0.93);
+  // --- 9. Warm color temperature (slightly warm, ref is warm) ---
+  col *= vec3(1.03, 1.00, 0.95);
 
-  // --- 10. Slight desaturation (VHS washes out colors a bit) ---
+  // --- 10. Keep colors vibrant (ref is colorful, NOT washed out) ---
+  // Very slight desaturation only
   float luma = dot(col, vec3(0.299, 0.587, 0.114));
-  col = mix(vec3(luma), col, 0.82);
+  col = mix(vec3(luma), col, 0.92);
 
-  // --- 11. Brightness boost (VHS recordings were bright, not dark) ---
-  col *= 1.12;
-  // Slight gamma lift in shadows (VHS blacks are never truly black)
-  col = mix(vec3(0.04), col, 0.97);
+  // --- 11. BRIGHT image (ref is very bright, not dark at all) ---
+  col *= 1.18;
+  // Lift blacks (VHS never has true black)
+  col = max(col, vec3(0.035));
 
   // --- 12. Subtle flicker ---
-  float flicker = 1.0 + sin(t * 6.0) * 0.005;
+  float flicker = 1.0 + sin(t * 6.0) * 0.004;
   col *= flicker;
 
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
@@ -248,7 +259,7 @@ export default function VHSPostProcess({ children }: { children: React.ReactNode
     try {
       const capturedCanvas = await html2canvas(source, {
         backgroundColor: '#000000',
-        scale: 1,
+        scale: 2,
         logging: false,
         useCORS: true,
         allowTaint: true,
