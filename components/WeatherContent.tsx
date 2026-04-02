@@ -24,7 +24,7 @@ const W = 1200, H = 900;
 const PBG = 'rgba(20, 40, 120, 0.88)';
 const PBD = '2px solid #6090d0';
 const PAUSE = 4000;
-const WIPE_MS = 400;
+const WIPE_DURATION = '400ms';
 
 // SMPTE color bars
 const SMPTE = ['#ffffff', '#ffcc00', '#00cccc', '#00cc00', '#cc00cc', '#cc0000', '#0000cc'];
@@ -348,10 +348,6 @@ function buildTicker(d: FullWeatherData): string {
   return msgs.join(' ━━━ ');
 }
 
-// ================================================================
-// SLIDE COMPONENTS ARRAY for wipe rendering
-// ================================================================
-const SLIDES = [S1, S2, S3, S4] as const;
 const TITLES = ['conditions actuelles', "tomorrow's forecast", 'extended forecast', 'almanac'];
 const N = 4;
 
@@ -362,43 +358,35 @@ interface Props { data: FullWeatherData | null; loading: boolean; }
 
 export default function WeatherContent({ data, loading }: Props) {
   const [now, setNow] = useState(new Date());
-  const [started, setStarted] = useState(false); // loading sequence done
+  const [started, setStarted] = useState(false);
   const [idx, setIdx] = useState(0);
   const idxRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Wipe transition state
-  const [wipe, setWipe] = useState<number | null>(null); // 0-1 progress, null = no wipe
+  // Wipe transition state — CSS-driven, no rAF
+  const [wiping, setWiping] = useState(false);
   const [outIdx, setOutIdx] = useState(0);
   const [inIdx, setInIdx] = useState(0);
-  const wipeRaf = useRef(0);
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
-  // Loading done callback
   const onLoadingDone = useCallback(() => setStarted(true), []);
 
-  // Wipe animation using rAF
+  // Start a CSS wipe transition (only 2 state changes: start + end)
   const startWipe = useCallback(() => {
     const nextIdx = (idxRef.current + 1) % N;
     setOutIdx(idxRef.current);
     setInIdx(nextIdx);
-    const start = performance.now();
-
-    function animate(t: number) {
-      const p = Math.min((t - start) / WIPE_MS, 1);
-      setWipe(p);
-      if (p < 1) {
-        wipeRaf.current = requestAnimationFrame(animate);
-      } else {
-        // Wipe complete
-        idxRef.current = nextIdx;
-        setIdx(nextIdx);
-        setWipe(null);
-      }
-    }
-    wipeRaf.current = requestAnimationFrame(animate);
+    setWiping(true);
   }, []);
+
+  // Called when CSS wipe animation ends
+  const onWipeEnd = useCallback(() => {
+    const next = inIdx;
+    idxRef.current = next;
+    setIdx(next);
+    setWiping(false);
+  }, [inIdx]);
 
   // Called by each slide when its build animation finishes
   const onSlideDone = useCallback(() => {
@@ -407,10 +395,7 @@ export default function WeatherContent({ data, loading }: Props) {
   }, [startWipe]);
 
   // Cleanup
-  useEffect(() => () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    cancelAnimationFrame(wipeRaf.current);
-  }, []);
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   // ---- LOADING SCREEN ----
   if (!started) {
@@ -427,10 +412,7 @@ export default function WeatherContent({ data, loading }: Props) {
   if (!data) return null;
 
   const ticker = buildTicker(data);
-
-  // Determine which slides to render
-  const isWiping = wipe !== null;
-  const currentIdx = isWiping ? outIdx : idx;
+  const titleIdx = wiping ? inIdx : idx;
 
   return (
     <div className="relative overflow-hidden" style={{ width: `${W}px`, height: `${H}px`, background: '#000' }}>
@@ -450,7 +432,7 @@ export default function WeatherContent({ data, loading }: Props) {
 
           {/* Slide title */}
           <div style={{ fontFamily: B, color: '#fff', fontSize: '32px', fontWeight: 700, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-            {TITLES[currentIdx]}
+            {TITLES[titleIdx]}
           </div>
 
           {/* ===== BROADCAST CLOCK PANEL ===== */}
@@ -483,34 +465,37 @@ export default function WeatherContent({ data, loading }: Props) {
           </div>
         </header>
 
-        {/* ===== SLIDE AREA WITH WIPE ===== */}
+        {/* ===== SLIDE AREA WITH CSS WIPE ===== */}
         <div className="flex-1 flex flex-col items-center justify-center" style={{ position: 'relative', overflow: 'hidden' }}>
-          {isWiping ? (
+          {wiping ? (
             <>
-              {/* Outgoing slide — clips from left */}
+              {/* Outgoing slide — CSS animation clips it away */}
               <div style={{
                 position: 'absolute', inset: 0,
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                clipPath: `inset(0 0 0 ${wipe! * 100}%)`,
+                animation: `wipeOut ${WIPE_DURATION} ease-in-out forwards`,
               }}>
                 {renderSlide(outIdx, data, undefined)}
               </div>
-              {/* Incoming slide — reveals from left */}
-              <div style={{
-                position: 'absolute', inset: 0,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                clipPath: `inset(0 ${(1 - wipe!) * 100}% 0 0)`,
-              }}>
+              {/* Incoming slide — CSS animation reveals it */}
+              <div
+                onAnimationEnd={onWipeEnd}
+                style={{
+                  position: 'absolute', inset: 0,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  animation: `wipeIn ${WIPE_DURATION} ease-in-out forwards`,
+                }}
+              >
                 {renderSlide(inIdx, data, undefined)}
               </div>
-              {/* Wipe line */}
+              {/* Wipe line — CSS animated */}
               <div style={{
                 position: 'absolute', top: 0, bottom: 0,
-                left: `${wipe! * 100}%`,
                 width: '3px',
                 background: '#ffcc00',
                 boxShadow: '0 0 8px rgba(255, 204, 0, 0.6)',
                 zIndex: 10,
+                animation: `wipeLine ${WIPE_DURATION} ease-in-out forwards`,
               }} />
             </>
           ) : (
@@ -551,7 +536,12 @@ export default function WeatherContent({ data, loading }: Props) {
           </div>
         </div>
       </div>
-      <style>{`@keyframes marquee { from { transform: translateX(${W}px); } to { transform: translateX(-100%); } }`}</style>
+      <style>{`
+        @keyframes marquee { from { transform: translateX(${W}px); } to { transform: translateX(-100%); } }
+        @keyframes wipeOut { from { clip-path: inset(0 0 0 0); } to { clip-path: inset(0 0 0 100%); } }
+        @keyframes wipeIn { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+        @keyframes wipeLine { from { left: 0%; } to { left: 100%; } }
+      `}</style>
     </div>
   );
 }
