@@ -1,6 +1,6 @@
 export default function WeatherBackground() {
   return (
-    <div className="fixed inset-0 z-0 overflow-hidden">
+    <div className="absolute inset-0 z-0 overflow-hidden">
       {/* Blue sky gradient */}
       <div
         className="absolute inset-0"
@@ -14,51 +14,69 @@ export default function WeatherBackground() {
         }}
       />
 
-      {/* Clouds layer */}
+      {/* Upper clouds layer */}
       <div className="clouds-drift absolute inset-0">
         <svg
-          className="absolute w-[120%] -left-[10%]"
-          style={{ top: "5%" }}
-          viewBox="0 0 1400 400"
+          className="absolute w-[130%] -left-[15%]"
+          style={{ top: "0%" }}
+          viewBox="0 0 1600 500"
           preserveAspectRatio="none"
         >
-          {/* Wispy cloud shapes */}
-          <ellipse cx="200" cy="100" rx="180" ry="60" fill="rgba(255,255,255,0.18)" />
-          <ellipse cx="280" cy="90" rx="120" ry="50" fill="rgba(255,255,255,0.22)" />
-          <ellipse cx="150" cy="110" rx="100" ry="40" fill="rgba(255,255,255,0.15)" />
+          {/* Cloud cluster 1 - top left */}
+          <ellipse cx="180" cy="80" rx="200" ry="75" fill="rgba(255,255,255,0.45)" />
+          <ellipse cx="280" cy="65" rx="150" ry="65" fill="rgba(255,255,255,0.55)" />
+          <ellipse cx="120" cy="95" rx="130" ry="55" fill="rgba(255,255,255,0.40)" />
+          <ellipse cx="220" cy="50" rx="100" ry="50" fill="rgba(255,255,255,0.50)" />
 
-          <ellipse cx="700" cy="150" rx="200" ry="70" fill="rgba(255,255,255,0.15)" />
-          <ellipse cx="780" cy="140" rx="140" ry="55" fill="rgba(255,255,255,0.20)" />
-          <ellipse cx="650" cy="160" rx="110" ry="45" fill="rgba(255,255,255,0.12)" />
+          {/* Cloud cluster 2 - top center */}
+          <ellipse cx="650" cy="110" rx="220" ry="80" fill="rgba(255,255,255,0.40)" />
+          <ellipse cx="750" cy="95" rx="170" ry="70" fill="rgba(255,255,255,0.50)" />
+          <ellipse cx="580" cy="125" rx="140" ry="60" fill="rgba(255,255,255,0.35)" />
+          <ellipse cx="700" cy="80" rx="120" ry="55" fill="rgba(255,255,255,0.48)" />
 
-          <ellipse cx="1100" cy="80" rx="170" ry="55" fill="rgba(255,255,255,0.16)" />
-          <ellipse cx="1180" cy="70" rx="130" ry="48" fill="rgba(255,255,255,0.20)" />
-          <ellipse cx="1050" cy="90" rx="90" ry="35" fill="rgba(255,255,255,0.13)" />
+          {/* Cloud cluster 3 - top right */}
+          <ellipse cx="1150" cy="70" rx="190" ry="70" fill="rgba(255,255,255,0.42)" />
+          <ellipse cx="1260" cy="55" rx="150" ry="62" fill="rgba(255,255,255,0.52)" />
+          <ellipse cx="1080" cy="85" rx="120" ry="50" fill="rgba(255,255,255,0.38)" />
 
-          <ellipse cx="400" cy="280" rx="220" ry="65" fill="rgba(255,255,255,0.12)" />
-          <ellipse cx="480" cy="270" rx="150" ry="50" fill="rgba(255,255,255,0.16)" />
-          <ellipse cx="350" cy="290" rx="100" ry="40" fill="rgba(255,255,255,0.10)" />
+          {/* Mid clouds - scattered */}
+          <ellipse cx="350" cy="220" rx="240" ry="80" fill="rgba(255,255,255,0.30)" />
+          <ellipse cx="450" cy="205" rx="180" ry="65" fill="rgba(255,255,255,0.38)" />
 
-          <ellipse cx="900" cy="320" rx="190" ry="60" fill="rgba(255,255,255,0.10)" />
-          <ellipse cx="970" cy="310" rx="130" ry="45" fill="rgba(255,255,255,0.14)" />
+          <ellipse cx="900" cy="260" rx="200" ry="75" fill="rgba(255,255,255,0.28)" />
+          <ellipse cx="1000" cy="245" rx="160" ry="60" fill="rgba(255,255,255,0.36)" />
 
-          <ellipse cx="1250" cy="250" rx="160" ry="50" fill="rgba(255,255,255,0.11)" />
-          <ellipse cx="1300" cy="240" rx="100" ry="38" fill="rgba(255,255,255,0.15)" />
+          <ellipse cx="1350" cy="200" rx="180" ry="70" fill="rgba(255,255,255,0.32)" />
+          <ellipse cx="1430" cy="185" rx="130" ry="55" fill="rgba(255,255,255,0.40)" />
         </svg>
       </div>
 
-      {/* Bottom clouds (more opaque, closer feel) */}
-      <div className="absolute bottom-0 left-0 w-full" style={{ height: "30%" }}>
+      {/* Dense bottom clouds (heavier, more opaque) */}
+      <div className="absolute bottom-0 left-0 w-full" style={{ height: "45%" }}>
         <svg
-          className="w-[120%] -ml-[10%] h-full"
-          viewBox="0 0 1400 300"
+          className="w-[140%] -ml-[20%] h-full clouds-drift"
+          viewBox="0 0 1800 400"
           preserveAspectRatio="none"
         >
-          <ellipse cx="100" cy="200" rx="250" ry="100" fill="rgba(255,255,255,0.25)" />
-          <ellipse cx="350" cy="220" rx="300" ry="120" fill="rgba(255,255,255,0.22)" />
-          <ellipse cx="650" cy="190" rx="280" ry="110" fill="rgba(255,255,255,0.28)" />
-          <ellipse cx="950" cy="210" rx="320" ry="130" fill="rgba(255,255,255,0.24)" />
-          <ellipse cx="1200" cy="195" rx="260" ry="105" fill="rgba(255,255,255,0.26)" />
+          {/* Dense cloud bank */}
+          <ellipse cx="100" cy="220" rx="300" ry="150" fill="rgba(255,255,255,0.50)" />
+          <ellipse cx="350" cy="240" rx="350" ry="160" fill="rgba(255,255,255,0.55)" />
+          <ellipse cx="700" cy="210" rx="320" ry="150" fill="rgba(255,255,255,0.52)" />
+          <ellipse cx="1000" cy="230" rx="380" ry="170" fill="rgba(255,255,255,0.48)" />
+          <ellipse cx="1350" cy="215" rx="300" ry="145" fill="rgba(255,255,255,0.54)" />
+          <ellipse cx="1600" cy="240" rx="280" ry="155" fill="rgba(255,255,255,0.50)" />
+
+          {/* Upper wisps of bottom bank */}
+          <ellipse cx="200" cy="140" rx="220" ry="90" fill="rgba(255,255,255,0.35)" />
+          <ellipse cx="500" cy="150" rx="260" ry="100" fill="rgba(255,255,255,0.32)" />
+          <ellipse cx="850" cy="130" rx="240" ry="95" fill="rgba(255,255,255,0.30)" />
+          <ellipse cx="1150" cy="145" rx="270" ry="100" fill="rgba(255,255,255,0.33)" />
+          <ellipse cx="1500" cy="140" rx="230" ry="90" fill="rgba(255,255,255,0.35)" />
+
+          {/* Very bottom dense fill */}
+          <ellipse cx="400" cy="340" rx="500" ry="120" fill="rgba(255,255,255,0.60)" />
+          <ellipse cx="900" cy="350" rx="550" ry="130" fill="rgba(255,255,255,0.58)" />
+          <ellipse cx="1400" cy="340" rx="480" ry="120" fill="rgba(255,255,255,0.62)" />
         </svg>
       </div>
     </div>

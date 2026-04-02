@@ -2,11 +2,11 @@
 
 :root {
   /* Weather Channel broadcast palette */
-  --wc-sky-top: #4a7ab5;
-  --wc-sky-mid: #6a9fd8;
-  --wc-sky-bot: #8bb8e8;
-  --wc-panel-bg: rgba(15, 30, 80, 0.88);
-  --wc-panel-border: rgba(80, 130, 220, 0.5);
+  --wc-sky-top: #3a6aa5;
+  --wc-sky-mid: #5a8fc8;
+  --wc-sky-bot: #7aa8d8;
+  --wc-panel-bg: rgba(12, 25, 70, 0.92);
+  --wc-panel-border: rgba(70, 120, 200, 0.6);
   --wc-panel-header: #1a3a7a;
   --wc-gold: #ffd700;
   --wc-yellow: #ffcc00;
@@ -20,15 +20,36 @@
 body {
   margin: 0;
   padding: 0;
-  background: var(--wc-sky-top);
+  background: #000;
   color: var(--wc-white);
   font-family: "Share Tech Mono", "Courier New", monospace;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+/* ===== 4:3 CRT container ===== */
+.crt-frame {
+  position: relative;
+  width: 100%;
+  max-height: 100vh;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  margin: 0 auto;
+}
+
+@media (min-aspect-ratio: 4/3) {
+  .crt-frame {
+    height: 100vh;
+    width: auto;
+  }
 }
 
 /* ===== Scanlines ===== */
 .scanlines {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 50;
   pointer-events: none;
@@ -49,7 +70,7 @@ body {
 
 /* ===== Glitch bar ===== */
 .glitch-bar {
-  position: fixed;
+  position: absolute;
   left: 0;
   width: 100%;
   height: 2px;
@@ -69,7 +90,7 @@ body {
 
 /* ===== VHS grain overlay ===== */
 .vhs-grain {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 49;
   pointer-events: none;
@@ -79,16 +100,17 @@ body {
 /* ===== Broadcast panel ===== */
 .broadcast-panel {
   background: var(--wc-panel-bg);
-  border: 1px solid var(--wc-panel-border);
-  border-radius: 2px;
+  border: 2px solid var(--wc-panel-border);
+  border-radius: 3px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
 }
 
 .panel-header {
-  background: linear-gradient(to bottom, #2a5aaa, #1a3a7a);
-  border-bottom: 1px solid var(--wc-panel-border);
-  padding: 6px 14px;
+  background: linear-gradient(to bottom, #2a5aaa, #152e6a);
+  border-bottom: 2px solid var(--wc-panel-border);
+  padding: 5px 12px;
   font-family: "VT323", "Courier New", monospace;
-  font-size: 1.3rem;
+  font-size: 1.2rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--wc-white);
@@ -96,10 +118,10 @@ body {
 
 /* ===== Cloud animation ===== */
 @keyframes drift {
-  from { transform: translateX(-5%); }
-  to { transform: translateX(5%); }
+  from { transform: translateX(-2%); }
+  to { transform: translateX(2%); }
 }
 
 .clouds-drift {
-  animation: drift 60s ease-in-out infinite alternate;
+  animation: drift 80s ease-in-out infinite alternate;
 }
