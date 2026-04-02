@@ -33,19 +33,22 @@ const SMPTE = ['#ffffff', '#ffcc00', '#00cccc', '#00cc00', '#cc00cc', '#cc0000',
 // ================================================================
 // useBuild — progressive reveal hook with onDone callback
 // ================================================================
-function useBuild(total: number, ms = 400, onDone?: () => void) {
-  const [s, set] = useState(0);
+function useBuild(total: number, ms = 400, onDone?: () => void, frozen = false) {
+  const [s, set] = useState(frozen ? total : 0);
   const doneRef = useRef(false);
   useEffect(() => {
-    // During wipe (no onDone): stay at 0 — show panel structure only
+    // Frozen = outgoing slide during wipe — show everything, no animation
+    if (frozen) { set(total); return; }
+    // No onDone = incoming slide during wipe — show nothing (structure only)
     if (!onDone) { set(0); return; }
+    // Normal mode: progressive reveal
     set(0); doneRef.current = false; let c = 0;
     const t = setInterval(() => {
       c++; set(c);
       if (c >= total) { clearInterval(t); if (!doneRef.current) { doneRef.current = true; onDone(); } }
     }, ms);
     return () => clearInterval(t);
-  }, [total, ms, onDone]);
+  }, [total, ms, onDone, frozen]);
   return s;
 }
 
@@ -178,10 +181,10 @@ function LoadingScreen({ now, dataReady, onReady }: {
 // ================================================================
 // SLIDE 1: CONDITIONS ACTUELLES
 // ================================================================
-function S1({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
+function S1({ d, onDone, frozen }: { d: FullWeatherData; onDone?: () => void; frozen?: boolean }) {
   const w = getWeatherInfo(d.current.weatherCode);
   const wd = degToCardinal(d.current.windDirection);
-  const s = useBuild(3, 500, onDone);
+  const s = useBuild(3, 500, onDone, frozen);
 
   return (
     <div style={{ width: '88%' }}>
@@ -216,8 +219,8 @@ function S1({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
 // ================================================================
 // SLIDE 2: TOMORROW'S FORECAST
 // ================================================================
-function S2({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
-  const s = useBuild(d.hourly.length, 500, onDone);
+function S2({ d, onDone, frozen }: { d: FullWeatherData; onDone?: () => void; frozen?: boolean }) {
+  const s = useBuild(d.hourly.length, 500, onDone, frozen);
   return (
     <div style={{ width: '88%' }}>
       <div style={{ fontFamily: T, color: '#ffd700', fontSize: '24px', fontWeight: 900, marginBottom: '8px', padding: '0 4px' }}>
@@ -252,8 +255,8 @@ function S2({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
 // ================================================================
 // SLIDE 3: 5-DAY FORECAST
 // ================================================================
-function S3({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
-  const s = useBuild(d.daily.length, 400, onDone);
+function S3({ d, onDone, frozen }: { d: FullWeatherData; onDone?: () => void; frozen?: boolean }) {
+  const s = useBuild(d.daily.length, 400, onDone, frozen);
   return (
     <div style={{ width: '88%' }}>
       <div style={{ background: PBG, border: PBD }}>
@@ -285,10 +288,10 @@ function S3({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
 // ================================================================
 // SLIDE 4: ALMANAC
 // ================================================================
-function S4({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
+function S4({ d, onDone, frozen }: { d: FullWeatherData; onDone?: () => void; frozen?: boolean }) {
   const today = new Date();
   const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-  const s = useBuild(3, 500, onDone);
+  const s = useBuild(3, 500, onDone, frozen);
 
   return (
     <div style={{ width: '88%' }}>
@@ -474,7 +477,7 @@ export default function WeatherContent({ data, loading }: Props) {
                   position: 'absolute', top: 0, right: 0,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  {renderSlide(outIdx, data, undefined)}
+                  {renderSlide(outIdx, data, undefined, true)}
                 </div>
               </div>
               {/* Incoming slide — revealed from left via width-growing wrapper */}
@@ -487,7 +490,7 @@ export default function WeatherContent({ data, loading }: Props) {
                   width: `${W}px`, height: '100%',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 }}>
-                  {renderSlide(inIdx, data, undefined)}
+                  {renderSlide(inIdx, data, undefined, false)}
                 </div>
               </div>
               {/* Wipe line */}
@@ -550,12 +553,14 @@ export default function WeatherContent({ data, loading }: Props) {
 }
 
 // Helper to render a slide by index
-function renderSlide(i: number, data: FullWeatherData, onDone?: () => void) {
+// frozen=true → outgoing wipe (fully built), frozen=false → incoming wipe (empty)
+function renderSlide(i: number, data: FullWeatherData, onDone?: () => void, frozen?: boolean) {
+  const k = `s${i}-${frozen === true ? 'fo' : frozen === false ? 'fi' : 'a'}`;
   switch (i) {
-    case 0: return <S1 key={`s0-${onDone ? 'a' : 'w'}`} d={data} onDone={onDone} />;
-    case 1: return <S2 key={`s1-${onDone ? 'a' : 'w'}`} d={data} onDone={onDone} />;
-    case 2: return <S3 key={`s2-${onDone ? 'a' : 'w'}`} d={data} onDone={onDone} />;
-    case 3: return <S4 key={`s3-${onDone ? 'a' : 'w'}`} d={data} onDone={onDone} />;
+    case 0: return <S1 key={k} d={data} onDone={onDone} frozen={frozen === true} />;
+    case 1: return <S2 key={k} d={data} onDone={onDone} frozen={frozen === true} />;
+    case 2: return <S3 key={k} d={data} onDone={onDone} frozen={frozen === true} />;
+    case 3: return <S4 key={k} d={data} onDone={onDone} frozen={frozen === true} />;
     default: return null;
   }
 }
