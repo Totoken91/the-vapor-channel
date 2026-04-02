@@ -397,41 +397,56 @@ const TITLES = ['conditions actuelles', "tomorrow's forecast", 'extended forecas
 const N = 4;
 
 // ================================================================
-// MARQUEE — JS-driven for html2canvas compatibility
+// TICKER CANVAS — draws scrolling text on a 2D canvas for smooth
+// animation. html2canvas copies canvas pixels instantly (no DOM re-render).
 // ================================================================
-function Marquee({ text, speed = 80 }: { text: string; speed?: number }) {
-  const textRef = useRef<HTMLSpanElement>(null);
+function TickerCanvas({ text, speed = 50 }: { text: string; speed?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const xRef = useRef<number | null>(null);
+  const textWidthRef = useRef(0);
 
   useEffect(() => {
-    const el = textRef.current;
-    if (!el) return;
-    const parent = el.parentElement;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Size canvas to parent
+    const parent = canvas.parentElement;
     if (!parent) return;
+    const w = parent.offsetWidth;
+    const h = parent.offsetHeight;
+    canvas.width = w;
+    canvas.height = h;
+
+    // Measure text
+    ctx.font = 'bold 18px Arial, Helvetica Neue, sans-serif';
+    textWidthRef.current = ctx.measureText(text).width;
+    if (xRef.current === null) xRef.current = w;
 
     let raf: number;
     let last = performance.now();
 
-    function tick(now: number) {
+    function draw(now: number) {
       const dt = (now - last) / 1000;
       last = now;
-      const pw = parent!.offsetWidth;
-      const tw = el!.offsetWidth;
-      if (xRef.current === null) xRef.current = pw;
-      xRef.current -= speed * dt;
-      if (xRef.current < -tw) xRef.current = pw;
-      el!.style.transform = `translateX(${xRef.current}px)`;
-      raf = requestAnimationFrame(tick);
+
+      xRef.current! -= speed * dt;
+      if (xRef.current! < -textWidthRef.current) xRef.current = w;
+
+      ctx!.clearRect(0, 0, w, h);
+      ctx!.font = 'bold 18px Arial, Helvetica Neue, sans-serif';
+      ctx!.fillStyle = '#ffcc00';
+      ctx!.textBaseline = 'middle';
+      ctx!.fillText(text, xRef.current!, h / 2);
+
+      raf = requestAnimationFrame(draw);
     }
-    raf = requestAnimationFrame(tick);
+    raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
   }, [text, speed]);
 
-  return (
-    <span ref={textRef} style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>
-      {text}
-    </span>
-  );
+  return <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />;
 }
 
 // ================================================================
@@ -621,12 +636,12 @@ export default function WeatherContent({ data, loading }: Props) {
             }}>
               MÉTÉO EN DIRECT
             </div>
-            {/* Scrolling area — JS-driven marquee for html2canvas compatibility */}
-            <div className="overflow-hidden whitespace-nowrap" style={{
+            {/* Scrolling area — canvas-based for smooth scrolling with html2canvas */}
+            <div style={{
               flex: 1, background: 'rgba(8, 16, 60, 0.94)',
-              fontFamily: B, color: '#ffcc00', fontSize: '18px', fontWeight: 700, padding: '7px 14px',
+              height: '34px', overflow: 'hidden',
             }}>
-              <Marquee text={ticker} speed={50} />
+              <TickerCanvas text={ticker} speed={50} />
             </div>
           </div>
         </div>
