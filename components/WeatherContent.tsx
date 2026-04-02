@@ -342,32 +342,42 @@ function S4({ d, onDone, frozen }: { d: FullWeatherData; onDone?: () => void; fr
 // ================================================================
 // TICKER — multiple messages + badge
 // ================================================================
-// Simulated stock indices — seeded from the date so they look consistent within a day
-function stockIndices(): string {
+// Ticker segment: text + color
+interface Seg { text: string; color: string }
+
+const YELLOW = '#ffcc00';
+const GREEN = '#44ff88';
+const RED = '#ff5555';
+const WHITE = '#ddeeff';
+const SP = '               ';
+
+// Simulated stock indices — seeded from the date
+function stockSegments(): Seg[] {
   const d = new Date();
   const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   function seededRand(s: number) { const x = Math.sin(s) * 43758.5453; return x - Math.floor(x); }
-  function idx(base: number, s: number) {
-    const change = (seededRand(s) - 0.45) * base * 0.025; // -1.25% to +1.375%
-    const val = base + change;
-    const pct = (change / base) * 100;
-    const sign = pct >= 0 ? '▲' : '▼';
-    return `${val.toFixed(2)} ${sign}${Math.abs(pct).toFixed(2)}%`;
+  function idx(name: string, base: number, s: number): Seg[] {
+    const pct = (seededRand(s) - 0.45) * 2.5; // -1.25% to +1.375%
+    const up = pct >= 0;
+    return [
+      { text: `${name}  `, color: WHITE },
+      { text: `${up ? '▲' : '▼'} ${up ? '+' : ''}${pct.toFixed(2)}%`, color: up ? GREEN : RED },
+      { text: SP, color: YELLOW },
+    ];
   }
   return [
-    `CAC 40 ${idx(7850, seed)}`,
-    `S&P 500 ${idx(5420, seed + 1)}`,
-    `NASDAQ ${idx(17200, seed + 2)}`,
-    `DAX ${idx(18500, seed + 3)}`,
-    `NIKKEI ${idx(39800, seed + 4)}`,
-  ].join('     ');
+    ...idx('CAC 40', 7850, seed),
+    ...idx('S&P 500', 5420, seed + 1),
+    ...idx('NASDAQ', 17200, seed + 2),
+    ...idx('DAX', 18500, seed + 3),
+    ...idx('NIKKEI', 39800, seed + 4),
+  ];
 }
 
-const SEP = '               ━━━               ';
-
-function buildTicker(d: FullWeatherData): string {
+function buildTicker(d: FullWeatherData): Seg[] {
   const w = getWeatherInfo(d.current.weatherCode);
   const wd = degToCardinal(d.current.windDirection);
+  const sep: Seg = { text: SP, color: YELLOW };
 
   const poems = [
     'TU ES EXACTEMENT LÀ OÙ TU DOIS ÊTRE EN CE MOMENT',
@@ -378,32 +388,39 @@ function buildTicker(d: FullWeatherData): string {
     'TA PRÉSENCE ILLUMINE LE MONDE PLUS QUE TU NE LE CROIS',
   ];
 
-  const msgs = [
-    `${d.current.city.toUpperCase()} : ${d.current.temperature}°C ${w.label} ━ HUMIDITÉ ${d.current.humidity}% ━ VENT ${wd} ${d.current.windSpeed} KM/H`,
-    poems[0],
-    `MARCHÉS ━ ${stockIndices()}`,
-    poems[1],
-    `PRÉVISIONS ━ ${d.daily.map(day => `${day.dayName}: ${day.tempMax}°/${day.tempMin}°`).join(' ━ ')}`,
-    poems[2],
-    `LEVER ${d.sun.sunrise} ━ COUCHER ${d.sun.sunset} ━ PRESSION ${d.current.pressure} HPA`,
-    poems[3],
-    poems[4],
-    poems[5],
+  return [
+    { text: `${d.current.city.toUpperCase()} : ${d.current.temperature}°C ${w.label}   HUMIDITÉ ${d.current.humidity}%   VENT ${wd} ${d.current.windSpeed} KM/H`, color: YELLOW },
+    sep,
+    { text: poems[0], color: WHITE },
+    sep,
+    ...stockSegments(),
+    { text: poems[1], color: WHITE },
+    sep,
+    { text: `PRÉVISIONS   ${d.daily.map(day => `${day.dayName}: ${day.tempMax}°/${day.tempMin}°`).join('   ')}`, color: YELLOW },
+    sep,
+    { text: poems[2], color: WHITE },
+    sep,
+    { text: `LEVER ${d.sun.sunrise}   COUCHER ${d.sun.sunset}   PRESSION ${d.current.pressure} HPA`, color: YELLOW },
+    sep,
+    { text: poems[3], color: WHITE },
+    sep,
+    { text: poems[4], color: WHITE },
+    sep,
+    { text: poems[5], color: WHITE },
   ];
-  return msgs.join(SEP);
 }
 
 const TITLES = ['conditions actuelles', "tomorrow's forecast", 'extended forecast', 'almanac'];
 const N = 4;
 
 // ================================================================
-// TICKER CANVAS — draws scrolling text on a 2D canvas for smooth
-// animation. html2canvas copies canvas pixels instantly (no DOM re-render).
+// TICKER CANVAS — draws colored segments on a 2D canvas at 60fps.
+// html2canvas copies canvas pixels instantly (no DOM re-render).
 // ================================================================
-function TickerCanvas({ text, speed = 50 }: { text: string; speed?: number }) {
+function TickerCanvas({ segments, speed = 50 }: { segments: Seg[]; speed?: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const xRef = useRef<number | null>(null);
-  const textWidthRef = useRef(0);
+  const totalWidthRef = useRef(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -411,7 +428,6 @@ function TickerCanvas({ text, speed = 50 }: { text: string; speed?: number }) {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Size canvas to parent
     const parent = canvas.parentElement;
     if (!parent) return;
     const w = parent.offsetWidth;
@@ -419,9 +435,12 @@ function TickerCanvas({ text, speed = 50 }: { text: string; speed?: number }) {
     canvas.width = w;
     canvas.height = h;
 
-    // Measure text
-    ctx.font = 'bold 18px Arial, Helvetica Neue, sans-serif';
-    textWidthRef.current = ctx.measureText(text).width;
+    const FONT = 'bold 18px Arial, Helvetica Neue, sans-serif';
+    ctx.font = FONT;
+
+    // Pre-measure each segment
+    const measured = segments.map(s => ({ ...s, w: ctx.measureText(s.text).width }));
+    totalWidthRef.current = measured.reduce((sum, s) => sum + s.w, 0);
     if (xRef.current === null) xRef.current = w;
 
     let raf: number;
@@ -432,19 +451,27 @@ function TickerCanvas({ text, speed = 50 }: { text: string; speed?: number }) {
       last = now;
 
       xRef.current! -= speed * dt;
-      if (xRef.current! < -textWidthRef.current) xRef.current = w;
+      if (xRef.current! < -totalWidthRef.current) xRef.current = w;
 
       ctx!.clearRect(0, 0, w, h);
-      ctx!.font = 'bold 18px Arial, Helvetica Neue, sans-serif';
-      ctx!.fillStyle = '#ffcc00';
+      ctx!.font = FONT;
       ctx!.textBaseline = 'middle';
-      ctx!.fillText(text, xRef.current!, h / 2);
+
+      let x = xRef.current!;
+      for (const seg of measured) {
+        // Skip segments entirely off-screen
+        if (x + seg.w > 0 && x < w) {
+          ctx!.fillStyle = seg.color;
+          ctx!.fillText(seg.text, x, h / 2);
+        }
+        x += seg.w;
+      }
 
       raf = requestAnimationFrame(draw);
     }
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [text, speed]);
+  }, [segments, speed]);
 
   return <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />;
 }
@@ -641,7 +668,7 @@ export default function WeatherContent({ data, loading }: Props) {
               flex: 1, background: 'rgba(8, 16, 60, 0.94)',
               height: '34px', overflow: 'hidden',
             }}>
-              <TickerCanvas text={ticker} speed={50} />
+              <TickerCanvas segments={ticker} speed={50} />
             </div>
           </div>
         </div>
