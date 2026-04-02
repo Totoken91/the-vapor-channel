@@ -69,15 +69,16 @@ function formatSunTime(iso: string): string {
 }
 
 export async function reverseGeocode(lat: number, lon: number): Promise<{ name: string; country: string }> {
-  const url = `https://geocoding-api.open-meteo.com/v1/search?name=${lat.toFixed(2)},${lon.toFixed(2)}&count=1&language=fr&format=json`;
+  // Use Nominatim (OpenStreetMap) for reverse geocoding — free, no API key
   try {
-    const res = await fetch(url);
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=fr&zoom=10`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'VaporWeather/1.0' } });
     const data = await res.json();
-    if (data.results?.[0]) {
-      return { name: data.results[0].name, country: data.results[0].country ?? '' };
-    }
+    const city = data.address?.city || data.address?.town || data.address?.village || data.address?.municipality || data.name || '';
+    const country = data.address?.country || '';
+    if (city) return { name: city, country };
   } catch { /* fallback */ }
-  return { name: `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`, country: '' };
+  return { name: 'PARIS', country: 'France' };
 }
 
 export async function fetchFullWeather(lat: number, lon: number, cityName?: string, countryName?: string): Promise<FullWeatherData> {
