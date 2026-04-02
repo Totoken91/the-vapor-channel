@@ -38,6 +38,8 @@ body {
   aspect-ratio: 4 / 3;
   overflow: hidden;
   margin: 0 auto;
+  /* Analog softness — slight blur like a real CRT/VHS signal */
+  filter: blur(0.4px) saturate(0.88) contrast(1.08) brightness(1.02);
 }
 
 @media (min-aspect-ratio: 4/3) {
@@ -47,55 +49,34 @@ body {
   }
 }
 
-/* ===== Scanlines ===== */
-.scanlines {
+/* ===== Chromatic aberration (RGB channel shift) ===== */
+.crt-frame::before,
+.crt-frame::after {
+  content: '';
   position: absolute;
   inset: 0;
-  z-index: 50;
+  z-index: 45;
   pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 0, 0, 0.08) 2px,
-    rgba(0, 0, 0, 0.08) 4px
+  border-radius: inherit;
+}
+
+/* Red/cyan fringing at edges */
+.crt-frame::before {
+  box-shadow:
+    inset 2px 0 8px rgba(255, 0, 0, 0.06),
+    inset -2px 0 8px rgba(0, 255, 255, 0.06);
+}
+
+/* CRT curvature shadow on edges */
+.crt-frame::after {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 60%,
+    rgba(0, 0, 0, 0.25) 100%
   );
-  animation: scanroll 8s linear infinite;
 }
 
-@keyframes scanroll {
-  from { background-position: 0 0; }
-  to { background-position: 0 200px; }
-}
-
-/* ===== Glitch bar ===== */
-.glitch-bar {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.12);
-  z-index: 51;
-  pointer-events: none;
-  animation: glitchbar 6s ease-in-out infinite;
-}
-
-@keyframes glitchbar {
-  0%, 100% { top: -10px; opacity: 0; }
-  20% { top: 30%; opacity: 1; }
-  21% { top: 32%; opacity: 0; }
-  50% { top: 70%; opacity: 1; }
-  51% { top: 72%; opacity: 0; }
-}
-
-/* ===== VHS grain overlay ===== */
-.vhs-grain {
-  position: absolute;
-  inset: 0;
-  z-index: 49;
-  pointer-events: none;
-  opacity: 0.04;
-}
+/* VHS effects are now handled by the WebGL shader in VHSEffects.tsx */
 
 /* ===== Broadcast panel ===== */
 .broadcast-panel {
