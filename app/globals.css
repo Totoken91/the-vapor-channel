@@ -38,8 +38,8 @@ body {
   aspect-ratio: 4 / 3;
   overflow: hidden;
   margin: 0 auto;
-  /* Analog softness — slight blur like a real CRT/VHS signal */
-  filter: blur(0.4px) saturate(0.88) contrast(1.08) brightness(1.02);
+  /* CRT barrel curvature — subtle outward bulge */
+  border-radius: 12px;
 }
 
 @media (min-aspect-ratio: 4/3) {
@@ -49,34 +49,41 @@ body {
   }
 }
 
-/* ===== Chromatic aberration (RGB channel shift) ===== */
-.crt-frame::before,
-.crt-frame::after {
+/* ===== VHS-filtered content layer ===== */
+.vhs-content {
+  /* Apply SVG displacement for REAL content warping */
+  filter: url(#vhs-warp);
+  /* Analog signal softness */
+  image-rendering: auto;
+}
+
+/* ===== Chromatic aberration layer ===== */
+.vhs-chroma {
+  filter: url(#vhs-chroma);
+}
+
+/* ===== CRT glass reflections + edge shadow ===== */
+.crt-frame::before {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 45;
+  z-index: 55;
   pointer-events: none;
+  /* Glass reflection highlight */
+  background:
+    radial-gradient(
+      ellipse at 30% 20%,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 50%
+    ),
+    /* Edge shadow (tube curvature) */
+    radial-gradient(
+      ellipse at center,
+      transparent 55%,
+      rgba(0, 0, 0, 0.35) 100%
+    );
   border-radius: inherit;
 }
-
-/* Red/cyan fringing at edges */
-.crt-frame::before {
-  box-shadow:
-    inset 2px 0 8px rgba(255, 0, 0, 0.06),
-    inset -2px 0 8px rgba(0, 255, 255, 0.06);
-}
-
-/* CRT curvature shadow on edges */
-.crt-frame::after {
-  background: radial-gradient(
-    ellipse at center,
-    transparent 60%,
-    rgba(0, 0, 0, 0.25) 100%
-  );
-}
-
-/* VHS effects are now handled by the WebGL shader in VHSEffects.tsx */
 
 /* ===== Broadcast panel ===== */
 .broadcast-panel {

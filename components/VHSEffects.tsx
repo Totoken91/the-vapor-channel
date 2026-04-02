@@ -9,139 +9,175 @@ void main() {
 }
 `;
 
+// Ultra-realistic VHS + CRT post-processing shader
+// Inspired by CRTFilter.js, Shadertoy VHS shaders, and RetroArch CRT shaders
 const FRAGMENT_SHADER = `
-precision mediump float;
+precision highp float;
 
 uniform float u_time;
 uniform vec2 u_resolution;
 
-// --- Pseudo-random hash ---
-float hash(vec2 p) {
+// ============================================================
+// HASH / NOISE FUNCTIONS
+// ============================================================
+float hash(float n) {
+  return fract(sin(n) * 43758.5453123);
+}
+
+float hash2(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
 }
 
-float hash1(float p) {
-  return fract(sin(p * 127.1) * 43758.5453123);
-}
-
-// --- Value noise ---
+// Value noise with smooth interpolation
 float vnoise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
-  float a = hash(i);
-  float b = hash(i + vec2(1.0, 0.0));
-  float c = hash(i + vec2(0.0, 1.0));
-  float d = hash(i + vec2(1.0, 1.0));
   vec2 u = f * f * (3.0 - 2.0 * f);
-  return mix(a, b, u.x) + (c - a) * u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
+  return mix(
+    mix(hash2(i + vec2(0.0, 0.0)), hash2(i + vec2(1.0, 0.0)), u.x),
+    mix(hash2(i + vec2(0.0, 1.0)), hash2(i + vec2(1.0, 1.0)), u.x),
+    u.y
+  );
 }
 
+// ============================================================
+// MAIN SHADER
+// ============================================================
 void main() {
   vec2 uv = gl_FragCoord.xy / u_resolution.xy;
   float t = u_time;
 
-  // ========================================
-  // 1. SCANLINES (fine interlacing)
-  // ========================================
-  float scanFreq = u_resolution.y * 0.5;
-  float scanline = sin(uv.y * scanFreq * 3.14159) * 0.5 + 0.5;
-  scanline = pow(scanline, 1.5) * 0.12;
+  // Quantize time for frame-by-frame VHS feel (simulate ~30fps tape)
+  float ft = floor(t * 30.0) / 30.0;
 
-  // Slower rolling scanline band (like a VCR head drum)
-  float rollSpeed = t * 0.15;
-  float rollY = fract(rollSpeed);
-  float rollBand = smoothstep(0.0, 0.05, abs(uv.y - rollY)) *
-                   smoothstep(0.0, 0.05, abs(uv.y - rollY - 1.0));
-  float rollDark = (1.0 - rollBand) * 0.06;
+  // --------------------------------------------------------
+  // 1. FINE SCANLINES (CRT phosphor rows)
+  // --------------------------------------------------------
+  // High frequency scanlines with slight brightness variation
+  float scanY = gl_FragCoord.y;
+  float scanline = 0.5 + 0.5 * sin(scanY * 3.14159);
+  scanline = pow(scanline, 0.8);
+  float scanDark = (1.0 - scanline) * 0.10;
 
-  // ========================================
-  // 2. NOISE / GRAIN (animated VHS static)
-  // ========================================
-  float grainTime = floor(t * 24.0);
-  float grain = hash(uv * u_resolution.xy * 0.5 + grainTime) * 0.09;
+  // Thicker interlace band (alternates every frame)
+  float field = mod(floor(t * 30.0), 2.0);
+  float interlace = 0.5 + 0.5 * sin((scanY + field * 0.5) * 3.14159 * 0.5);
+  scanDark += (1.0 - interlace) * 0.02;
 
-  // Tape hiss noise - horizontal streaks
-  float hissNoise = hash(vec2(uv.y * 400.0, grainTime)) * 0.03;
-  hissNoise *= step(0.97, hash(vec2(floor(uv.y * 200.0), grainTime)));
+  // --------------------------------------------------------
+  // 2. ROLLING SYNC BAND (VCR head drum)
+  // --------------------------------------------------------
+  float rollY = fract(t * 0.1);
+  float rollDist = min(abs(uv.y - rollY), abs(uv.y - rollY + 1.0));
+  rollDist = min(rollDist, abs(uv.y - rollY - 1.0));
+  float rollBand = smoothstep(0.06, 0.0, rollDist);
+  float rollDark = rollBand * 0.12;
 
-  // ========================================
-  // 3. TRACKING DISTORTION
-  // ========================================
-  // Head switching noise at bottom of frame
-  float headSwitch = smoothstep(0.97, 1.0, uv.y);
-  float headNoise = headSwitch * hash(vec2(uv.x * 10.0, grainTime)) * 0.6;
+  // --------------------------------------------------------
+  // 3. HEAD SWITCHING NOISE (bottom of frame)
+  // --------------------------------------------------------
+  float headSwitch = smoothstep(0.96, 1.0, uv.y);
+  float headNoise = headSwitch * hash2(vec2(uv.x * 20.0 + ft, ft * 7.0));
+  float headBright = headNoise * 0.5;
 
-  // Occasional tracking jump (whole frame shifts)
-  float trackTrigger = step(0.992, hash(vec2(floor(t * 1.5), 42.0)));
-  float trackOffset = trackTrigger * (hash(vec2(floor(t * 1.5), 99.0)) - 0.5) * 0.01;
+  // --------------------------------------------------------
+  // 4. TAPE GRAIN / STATIC (luma noise)
+  // --------------------------------------------------------
+  // Fast-changing grain at tape frame rate
+  float grain = hash2(gl_FragCoord.xy * 0.8 + ft * 137.0);
+  grain = (grain - 0.5) * 0.10;
 
-  // ========================================
-  // 4. HORIZONTAL GLITCH BARS
-  // ========================================
+  // --------------------------------------------------------
+  // 5. TAPE HISS (horizontal noise streaks)
+  // --------------------------------------------------------
+  float hissLine = hash(floor(uv.y * 300.0) + ft * 73.0);
+  float hissActive = step(0.96, hissLine);
+  float hissBright = hissActive * hash(floor(uv.y * 300.0) + ft * 31.0) * 0.15;
+
+  // --------------------------------------------------------
+  // 6. HORIZONTAL GLITCH BARS (tape damage)
+  // --------------------------------------------------------
   float glitch = 0.0;
-  for (int i = 0; i < 4; i++) {
-    float seed = float(i) + floor(t * 2.0) * 13.0;
-    float active = step(0.7, hash(vec2(seed, 0.0)));
-    float barY = hash(vec2(seed, 1.0));
-    float barW = 0.002 + hash(vec2(seed, 2.0)) * 0.015;
-    float barIntensity = hash(vec2(seed, 3.0)) * 0.2;
-    float bar = smoothstep(barW, 0.0, abs(uv.y - barY));
-    glitch += bar * barIntensity * active;
+  for (int i = 0; i < 3; i++) {
+    float seed = float(i) * 17.0 + floor(t * 1.5) * 43.0;
+    float active = step(0.65, hash(seed));
+    float barY = hash(seed + 1.0);
+    float barW = 0.003 + hash(seed + 2.0) * 0.012;
+    float barStr = hash(seed + 3.0) * 0.20;
+    glitch += smoothstep(barW, 0.0, abs(uv.y - barY)) * barStr * active;
   }
 
-  // ========================================
-  // 5. VIGNETTE (CRT tube darkening)
-  // ========================================
+  // Rare strong glitch burst
+  float burstTrigger = step(0.995, hash(floor(t * 0.8) + 999.0));
+  float burstY = hash(floor(t * 0.8) + 500.0);
+  float burstH = 0.02 + hash(floor(t * 0.8) + 501.0) * 0.08;
+  float burst = smoothstep(burstH, 0.0, abs(uv.y - burstY)) * 0.4 * burstTrigger;
+  glitch += burst;
+
+  // --------------------------------------------------------
+  // 7. TAPE CREASE (traveling horizontal line)
+  // --------------------------------------------------------
+  float creaseY = fract(t * 0.06 + 0.3);
+  float crease = smoothstep(0.004, 0.0, abs(uv.y - creaseY));
+  float creaseBright = crease * 0.18;
+
+  // --------------------------------------------------------
+  // 8. SIGNAL RINGING (edge overshoot — bright line near dark edges)
+  // --------------------------------------------------------
+  // Simulated by slight brightness oscillation along X
+  float ringing = sin(uv.x * u_resolution.x * 0.8 + t * 5.0) * 0.008;
+
+  // --------------------------------------------------------
+  // 9. VIGNETTE (CRT tube edge darkening)
+  // --------------------------------------------------------
   vec2 vigUV = uv * (1.0 - uv);
-  float vignette = vigUV.x * vigUV.y * 20.0;
-  vignette = clamp(pow(vignette, 0.35), 0.0, 1.0);
+  float vignette = vigUV.x * vigUV.y * 25.0;
+  vignette = clamp(pow(vignette, 0.4), 0.0, 1.0);
+  float vigDark = (1.0 - vignette) * 0.45;
 
-  // ========================================
-  // 6. COLOR TEMPERATURE (warm VHS tint)
-  // ========================================
-  // VHS tapes had slightly warm, desaturated look
-  vec3 warmTint = vec3(0.015, 0.005, -0.02);
+  // --------------------------------------------------------
+  // 10. PHOSPHOR GLOW (slight bloom on bright areas)
+  // --------------------------------------------------------
+  // Subtle warm glow
+  float glow = smoothstep(0.6, 1.0, 1.0 - vigDark) * 0.03;
 
-  // Slight color bleed - shifts per scanline
-  float colorBleed = sin(uv.y * 300.0 + t * 2.0) * 0.008;
+  // --------------------------------------------------------
+  // 11. FLICKER (CRT brightness instability)
+  // --------------------------------------------------------
+  float flicker = sin(t * 8.0) * sin(t * 13.0) * sin(t * 21.0);
+  flicker = flicker * 0.008;
 
-  // ========================================
-  // 7. TAPE CREASE (horizontal distortion line)
-  // ========================================
-  float creaseY = fract(t * 0.08);
-  float crease = smoothstep(0.008, 0.0, abs(uv.y - creaseY));
-  crease *= 0.25;
+  // --------------------------------------------------------
+  // 12. DOT MASK (RGB phosphor subpixels)
+  // --------------------------------------------------------
+  float dotX = mod(gl_FragCoord.x, 3.0);
+  vec3 dotMask = vec3(
+    step(0.0, dotX) * step(dotX, 1.0),
+    step(1.0, dotX) * step(dotX, 2.0),
+    step(2.0, dotX) * step(dotX, 3.0)
+  );
+  // Very subtle — mix 90% white with 10% dot mask
+  dotMask = mix(vec3(1.0), dotMask, 0.06);
 
-  // ========================================
-  // 8. SUBTLE WAVINESS (tape warp)
-  // ========================================
-  float waveAmount = sin(t * 0.3) * 0.001;
-  float wave = sin(uv.y * 15.0 + t * 3.0) * waveAmount;
-
-  // ========================================
+  // --------------------------------------------------------
   // COMPOSITE
-  // ========================================
-  // Darkness layer (scanlines, vignette, roll)
-  float darkness = scanline + rollDark + headNoise + crease;
+  // --------------------------------------------------------
+  // Total darkening
+  float totalDark = scanDark + rollDark + vigDark + flicker;
 
-  // Brightness layer (noise, glitch)
-  float brightness = grain + hissNoise + glitch;
+  // Total brightening (noise / artifacts)
+  float totalBright = grain + hissBright + headBright + glitch + creaseBright + ringing + glow;
 
-  // Final color: dark overlay with warm tint
-  vec3 darkColor = vec3(0.0) + warmTint;
-  vec3 brightColor = vec3(1.0, 0.95, 0.9); // warm white noise
+  // Warm VHS color tint
+  vec3 warmColor = vec3(1.0, 0.97, 0.92);
 
-  vec3 finalColor = mix(darkColor, brightColor, brightness);
+  // Output: dark overlay with noise
+  vec3 color = warmColor * (totalBright * 0.5) * dotMask;
 
-  // Alpha: how much to affect the underlying content
-  float alpha = darkness + brightness * 0.5;
-  alpha *= vignette; // reduce effect at edges (vignette is separate)
+  // Alpha combines darkening + noise visibility
+  float alpha = clamp(totalDark + abs(totalBright) * 0.4, 0.0, 0.8);
 
-  // Add vignette darkening
-  float vigDark = (1.0 - vignette) * 0.35;
-
-  // Output
-  gl_FragColor = vec4(finalColor * 0.5, alpha + vigDark);
+  gl_FragColor = vec4(color, alpha);
 }
 `;
 
@@ -151,7 +187,7 @@ function createShader(gl: WebGLRenderingContext, type: number, source: string): 
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    console.error('Shader compile error:', gl.getShaderInfoLog(shader));
+    console.error('VHS Shader compile error:', gl.getShaderInfoLog(shader));
     gl.deleteShader(shader);
     return null;
   }
@@ -165,7 +201,7 @@ function createProgram(gl: WebGLRenderingContext, vs: WebGLShader, fs: WebGLShad
   gl.attachShader(program, fs);
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    console.error('Program link error:', gl.getProgramInfoLog(program));
+    console.error('VHS Program link error:', gl.getProgramInfoLog(program));
     gl.deleteProgram(program);
     return null;
   }
@@ -183,13 +219,16 @@ export default function VHSEffects() {
     const parent = canvas.parentElement;
     if (!parent) return;
 
-    const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
+    const gl = canvas.getContext('webgl', {
+      alpha: true,
+      premultipliedAlpha: false,
+      antialias: false,
+    });
     if (!gl) {
       console.warn('WebGL not available, VHS effects disabled');
       return;
     }
 
-    // Create shaders
     const vs = createShader(gl, gl.VERTEX_SHADER, VERTEX_SHADER);
     const fs = createShader(gl, gl.FRAGMENT_SHADER, FRAGMENT_SHADER);
     if (!vs || !fs) return;
@@ -209,7 +248,6 @@ export default function VHSEffects() {
     const uTime = gl.getUniformLocation(program, 'u_time');
     const uResolution = gl.getUniformLocation(program, 'u_resolution');
 
-    // Resize handler
     function resize() {
       if (!canvas || !parent) return;
       const rect = parent.getBoundingClientRect();
@@ -222,13 +260,12 @@ export default function VHSEffects() {
     }
 
     resize();
-    window.addEventListener('resize', resize);
+    const resizeObserver = new ResizeObserver(resize);
+    resizeObserver.observe(parent);
 
-    // Enable blending
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-    // Animation loop
     const startTime = performance.now();
 
     function render() {
@@ -239,7 +276,6 @@ export default function VHSEffects() {
       gl.clear(gl.COLOR_BUFFER_BIT);
 
       gl.useProgram(program);
-
       gl.enableVertexAttribArray(aPosition);
       gl.bindBuffer(gl.ARRAY_BUFFER, posBuffer);
       gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
@@ -248,7 +284,6 @@ export default function VHSEffects() {
       gl.uniform2f(uResolution, canvas!.width, canvas!.height);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
-
       animRef.current = requestAnimationFrame(render);
     }
 
@@ -256,7 +291,7 @@ export default function VHSEffects() {
 
     return () => {
       cancelAnimationFrame(animRef.current);
-      window.removeEventListener('resize', resize);
+      resizeObserver.disconnect();
       gl.deleteProgram(program);
       gl.deleteShader(vs);
       gl.deleteShader(fs);
