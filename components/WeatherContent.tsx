@@ -73,6 +73,7 @@ function LoadingScreen({ now, dataReady, onReady }: {
   const [phase, setPhase] = useState<LoadPhase>('static');
   const [dots, setDots] = useState('');
   const [signalAcquired, setSignalAcquired] = useState(false);
+  const [showProduction, setShowProduction] = useState(false);
 
   // Phase transitions
   useEffect(() => {
@@ -83,6 +84,13 @@ function LoadingScreen({ now, dataReady, onReady }: {
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
+
+  // Show production credit mid-way through colorbars
+  useEffect(() => {
+    if (phase !== 'colorbars') return;
+    const t = setTimeout(() => setShowProduction(true), 1000);
+    return () => clearTimeout(t);
+  }, [phase]);
 
   // Animated dots for satellite text
   useEffect(() => {
@@ -125,9 +133,15 @@ function LoadingScreen({ now, dataReady, onReady }: {
             position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
             background: 'rgba(0,0,0,0.7)', padding: '16px 32px', borderRadius: '4px',
           }}>
-            <div style={{ fontFamily: T, color: '#fff', fontSize: '28px', fontWeight: 900, textAlign: 'center' }}>
-              THE VAPOR CHANNEL
-            </div>
+            {showProduction ? (
+              <div key="prod" style={{ fontFamily: B, color: '#ccc', fontSize: '22px', fontWeight: 400, textAlign: 'center', fontStyle: 'italic', animation: 'fadeIn 0.4s ease-out' }}>
+                a totoken&apos;s production
+              </div>
+            ) : (
+              <div key="title" style={{ fontFamily: T, color: '#fff', fontSize: '28px', fontWeight: 900, textAlign: 'center' }}>
+                THE VAPOR CHANNEL
+              </div>
+            )}
           </div>
           {/* Static overlay for texture */}
           <div style={{ position: 'absolute', inset: 0 }}>
