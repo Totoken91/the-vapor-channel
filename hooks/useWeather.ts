@@ -1,22 +1,21 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { fetchWeather, reverseGeocode, type WeatherData } from '@/lib/weather';
+import { fetchFullWeather, reverseGeocode, type FullWeatherData } from '@/lib/weather';
 
 const PARIS_LAT = 48.8566;
 const PARIS_LON = 2.3522;
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const REFRESH_INTERVAL = 5 * 60 * 1000;
 
 export function useWeather() {
-  const [data, setData] = useState<WeatherData | null>(null);
+  const [data, setData] = useState<FullWeatherData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const loadWeather = useCallback(async (lat: number, lon: number) => {
     try {
-      // Reverse geocode to get city name
       const geo = await reverseGeocode(lat, lon);
-      const weather = await fetchWeather(lat, lon, geo.name, geo.country);
+      const weather = await fetchFullWeather(lat, lon, geo.name, geo.country);
       setData(weather);
       setError(null);
     } catch (e) {
@@ -32,7 +31,6 @@ export function useWeather() {
     let lon = PARIS_LON;
 
     async function init() {
-      // Try browser geolocation
       if ('geolocation' in navigator) {
         try {
           const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -43,19 +41,14 @@ export function useWeather() {
           });
           lat = pos.coords.latitude;
           lon = pos.coords.longitude;
-        } catch {
-          // Geoloc refused or timed out — use Paris
-        }
+        } catch { /* fallback Paris */ }
       }
 
       await loadWeather(lat, lon);
-
-      // Refresh every 5 minutes
       refreshTimer = setInterval(() => loadWeather(lat, lon), REFRESH_INTERVAL);
     }
 
     init();
-
     return () => clearInterval(refreshTimer);
   }, [loadWeather]);
 
