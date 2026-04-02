@@ -93,145 +93,107 @@ vec2 tapeWobble(vec2 uv, float t) {
   return uv;
 }
 
-// ============ CHROMA BLUR (sample at different offsets/radii) ============
+// ============ HEAVY CHROMA BLUR (the key VHS look — colors bleeding) ============
 
-vec3 chromaSeparation(vec2 uv, float t) {
-  // Pixel size
+vec3 chromaBleed(vec2 uv) {
   vec2 px = 1.0 / u_res;
 
-  // Luma: sharp (sample center)
+  // Luma (Y): stays sharp — sample at center only
   float y = rgb2yiq(texture2D(u_tex, uv).rgb).x;
 
-  // I channel: blurred wider, shifted right (chroma delay)
-  vec3 iSample = vec3(0.0);
-  for (int i = -3; i <= 3; i++) {
-    float w = 1.0 - abs(float(i)) * 0.15;
-    iSample += texture2D(u_tex, uv + vec2(float(i) * px.x * 2.0 + px.x * 3.0, 0.0)).rgb * w;
+  // I channel: WIDE blur + shifted right (chroma delay in analog signal)
+  // This is what makes colors "bleed" into each other
+  vec3 iAcc = vec3(0.0);
+  float iWeight = 0.0;
+  for (int i = -8; i <= 8; i++) {
+    float w = exp(-0.04 * float(i * i)); // gaussian-ish
+    // Shift RIGHT by 5 pixels (analog chroma delay)
+    iAcc += texture2D(u_tex, uv + vec2(float(i) * px.x * 3.0 + px.x * 5.0, 0.0)).rgb * w;
+    iWeight += w;
   }
-  iSample /= 5.5;
-  float iq_i = rgb2yiq(iSample).y;
+  float iq_i = rgb2yiq(iAcc / iWeight).y;
 
-  // Q channel: even more blurred, shifted further right
-  vec3 qSample = vec3(0.0);
-  for (int i = -4; i <= 4; i++) {
-    float w = 1.0 - abs(float(i)) * 0.12;
-    qSample += texture2D(u_tex, uv + vec2(float(i) * px.x * 3.0 + px.x * 6.0, 0.0)).rgb * w;
+  // Q channel: EVEN WIDER blur + shifted further right
+  vec3 qAcc = vec3(0.0);
+  float qWeight = 0.0;
+  for (int i = -12; i <= 12; i++) {
+    float w = exp(-0.025 * float(i * i));
+    qAcc += texture2D(u_tex, uv + vec2(float(i) * px.x * 4.0 + px.x * 10.0, 0.0)).rgb * w;
+    qWeight += w;
   }
-  qSample /= 6.6;
-  float iq_q = rgb2yiq(qSample).z;
+  float iq_q = rgb2yiq(qAcc / qWeight).z;
 
-  return yiq2rgb(vec3(y, iq_i * 0.9, iq_q * 0.9));
+  return yiq2rgb(vec3(y, iq_i, iq_q));
 }
 
 // ============ MAIN ============
 
 void main() {
   float t = u_time;
-  float ft = floor(t * 30.0) / 30.0; // 30fps quantized time
+  float ft = floor(t * 24.0) / 24.0; // 24fps quantized for grain
 
-  // --- 1. Barrel distortion ---
+  // --- 1. Subtle barrel distortion ---
   vec2 uv = barrelDistort(v_uv);
 
-  // Black outside the curved screen
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
     gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
     return;
   }
 
-  // --- 2. Tape wobble ---
-  uv = tapeWobble(uv, t * 15.0);
+  // --- 2. Very subtle tape wobble ---
+  uv = tapeWobble(uv, t * 8.0);
 
-  // --- 3. Head switching noise (bottom 4% of frame) ---
-  float headSwitch = smoothstep(0.95, 1.0, uv.y);
-  uv.x += headSwitch * (hash2(vec2(uv.x * 20.0, ft * 7.0)) - 0.5) * 0.06;
+  // --- 3. HEAVY CHROMA BLEEDING (the main VHS look) ---
+  vec3 col = chromaBleed(uv);
 
-  // --- 4. Chroma separation (YIQ) ---
-  vec3 col = chromaSeparation(uv, t);
-
-  // --- 5. Chromatic aberration (additional RGB shift) ---
+  // --- 4. Slight chromatic aberration (RGB fringing) ---
   vec2 px = 1.0 / u_res;
-  float caAmount = 1.2 + 1.5 * length(uv - 0.5); // stronger at edges
-  col.r = chromaSeparation(uv + vec2(px.x * caAmount, 0.0), t).r;
-  col.b = chromaSeparation(uv - vec2(px.x * caAmount, 0.0), t).b;
+  float ca = 1.0 + 0.8 * length(uv - 0.5);
+  col.r = chromaBleed(uv + vec2(px.x * ca, 0.0)).r;
+  col.b = chromaBleed(uv - vec2(px.x * ca, 0.0)).b;
 
-  // --- 6. Scanlines ---
+  // --- 5. Overall softness (slight blur to simulate analog) ---
+  vec3 blur = vec3(0.0);
+  blur += texture2D(u_tex, uv + vec2(px.x, 0.0)).rgb;
+  blur += texture2D(u_tex, uv - vec2(px.x, 0.0)).rgb;
+  blur += texture2D(u_tex, uv + vec2(0.0, px.y)).rgb;
+  blur += texture2D(u_tex, uv - vec2(0.0, px.y)).rgb;
+  blur *= 0.25;
+  col = mix(col, blur, 0.15); // 15% softness
+
+  // --- 6. HEAVY GRAIN (big, visible, like real VHS) ---
+  // Low frequency = big chunky grain (not fine noise)
+  float grain1 = hash2(floor(gl_FragCoord.xy * 0.5) * 2.0 + ft * 137.0); // 2x2 pixel blocks
+  float grain2 = hash2(floor(gl_FragCoord.xy * 0.25) * 4.0 + ft * 73.0); // 4x4 pixel blocks
+  float grain = mix(grain1, grain2, 0.4);
+  col += (grain - 0.5) * 0.14; // Strong grain
+
+  // --- 7. Very subtle scanlines (barely visible, like the ref) ---
   float scanY = uv.y * u_res.y;
   float scanline = 0.5 + 0.5 * sin(scanY * 3.14159);
-  scanline = pow(scanline, 1.2);
-  col *= 0.92 + 0.08 * scanline;
+  col *= 0.97 + 0.03 * scanline; // Only 3% modulation
 
-  // Interlace: alternate field brightness
-  float field = mod(floor(t * 30.0), 2.0);
-  float interlace = 0.5 + 0.5 * sin((scanY + field * 0.5) * 3.14159 * 0.5);
-  col *= 0.98 + 0.02 * interlace;
-
-  // --- 7. Rolling sync band ---
-  float rollY = fract(t * 0.08);
-  float rollDist = min(abs(uv.y - rollY), min(abs(uv.y - rollY + 1.0), abs(uv.y - rollY - 1.0)));
-  float rollBand = smoothstep(0.05, 0.0, rollDist);
-  col *= 1.0 - rollBand * 0.15;
-
-  // --- 8. Grain / tape noise ---
-  float grain = hash2(gl_FragCoord.xy * 0.7 + ft * 137.0);
-  col += (grain - 0.5) * 0.06;
-
-  // --- 9. Tape hiss (horizontal noise streaks) ---
-  float hissLine = hash(floor(uv.y * 350.0) + ft * 73.0);
-  if (hissLine > 0.97) {
-    col += hash(floor(uv.y * 350.0) + ft * 31.0) * 0.08;
-  }
-
-  // --- 10. Horizontal glitch bars ---
-  for (int i = 0; i < 3; i++) {
-    float seed = float(i) * 17.0 + floor(t * 1.5) * 43.0;
-    float active = step(0.7, hash(seed));
-    float barY = hash(seed + 1.0);
-    float barW = 0.003 + hash(seed + 2.0) * 0.012;
-    float barStr = hash(seed + 3.0) * 0.12;
-    col += smoothstep(barW, 0.0, abs(uv.y - barY)) * barStr * active;
-  }
-
-  // Rare strong burst
-  float burstTrigger = step(0.993, hash(floor(t * 0.7) + 999.0));
-  float burstY = hash(floor(t * 0.7) + 500.0);
-  col += smoothstep(0.04, 0.0, abs(uv.y - burstY)) * 0.3 * burstTrigger;
-
-  // --- 11. Tape crease ---
-  float creaseY = fract(t * 0.05 + 0.3);
-  col += smoothstep(0.003, 0.0, abs(uv.y - creaseY)) * 0.12;
-
-  // --- 12. Vignette (CRT tube) ---
+  // --- 8. Very light vignette (ref barely has any) ---
   vec2 vigUV = v_uv * (1.0 - v_uv);
-  float vignette = vigUV.x * vigUV.y * 25.0;
-  vignette = clamp(pow(vignette, 0.35), 0.0, 1.0);
-  col *= vignette;
+  float vignette = vigUV.x * vigUV.y * 30.0;
+  vignette = clamp(pow(vignette, 0.5), 0.0, 1.0);
+  col *= mix(0.85, 1.0, vignette); // Light darkening at extreme edges only
 
-  // --- 13. Flicker ---
-  float flicker = 1.0 + sin(t * 8.0) * sin(t * 13.0) * 0.01;
-  col *= flicker;
+  // --- 9. Warm color temperature ---
+  col *= vec3(1.04, 1.00, 0.93);
 
-  // --- 14. Dot mask (RGB phosphor subpixels) ---
-  float dotX = mod(gl_FragCoord.x, 3.0);
-  vec3 mask = vec3(
-    step(0.0, dotX) * step(dotX, 1.0),
-    step(1.0, dotX) * step(dotX, 2.0),
-    step(2.0, dotX) * step(dotX, 3.0)
-  );
-  col *= mix(vec3(1.0), mask + 0.6, 0.15);
-
-  // --- 15. Warm VHS color temperature ---
-  col *= vec3(1.02, 0.99, 0.94);
-
-  // --- 16. Slight desaturation ---
+  // --- 10. Slight desaturation (VHS washes out colors a bit) ---
   float luma = dot(col, vec3(0.299, 0.587, 0.114));
-  col = mix(vec3(luma), col, 0.85);
+  col = mix(vec3(luma), col, 0.82);
 
-  // --- 17. Contrast + brightness ---
-  col = (col - 0.5) * 1.05 + 0.5;
-  col *= 1.05;
+  // --- 11. Brightness boost (VHS recordings were bright, not dark) ---
+  col *= 1.12;
+  // Slight gamma lift in shadows (VHS blacks are never truly black)
+  col = mix(vec3(0.04), col, 0.97);
 
-  // Head switching: brighten/distort bottom
-  col = mix(col, vec3(hash2(vec2(uv.x * 10.0, ft))), headSwitch * 0.7);
+  // --- 12. Subtle flicker ---
+  float flicker = 1.0 + sin(t * 6.0) * 0.005;
+  col *= flicker;
 
   gl_FragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }
