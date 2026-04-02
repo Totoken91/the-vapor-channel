@@ -2,7 +2,7 @@
 
 ## Vision
 
-Créer un site web qui reproduit l'esthétique des bulletins météo des années 80 (style Weather Channel USA) avec des effets VHS/vaporwave, mais qui affiche la **vraie météo en temps réel**. L'ambiance doit évoquer les vidéos YouTube "Weather Channel Vaporwave" mais en interactif, dans le navigateur, avec de la musique chill générative.
+Créer un site web qui reproduit l'esthétique des bulletins météo des années 80 (style Weather Channel USA) avec des effets VHS, mais qui affiche la **vraie météo en temps réel**. L'ambiance doit évoquer les vidéos YouTube "Weather Channel" rétro mais en interactif, dans le navigateur, avec de la musique vaporwave chill générative.
 
 ---
 
@@ -27,10 +27,10 @@ Créer un site web qui reproduit l'esthétique des bulletins météo des années
    - Données affichées : température, ressenti, humidité, pression, vent (direction + vitesse), rafales, point de rosée, visibilité, condition météo
    - Conversion WMO weather codes → labels FR + emoji
 
-2. **Esthétique VHS/Vaporwave**
+2. **Esthétique VHS / Rétro 80s**
    - Fond : ciel dégradé synthwave (violet foncé → rose → orange horizon)
    - Soleil stylisé avec rayures noires (comme les vieux écrans météo)
-   - Grille perspective au sol (style Miami Vice / vaporwave)
+   - Grille perspective au sol (style Miami Vice)
    - Montagnes silhouettées SVG en arrière-plan
    - Scanlines animées (CSS, overlay semi-transparent)
    - Barre de glitch qui traverse l'écran périodiquement
@@ -46,7 +46,7 @@ Créer un site web qui reproduit l'esthétique des bulletins météo des années
    - Format style broadcast : `VEN AVR 02  22:14:35`
    - Mise à jour chaque seconde
 
-5. **Musique vaporwave générative**
+5. **Musique vaporwave générative** *(seul élément vaporwave du projet)*
    - Bouton ON/OFF
    - Accords lents (sine wave) sur une grille harmonique
    - Basse triangle douce
@@ -183,7 +183,7 @@ Aucune clé API requise. Gratuit. Limites généreuses (10 000 req/jour).
 
 ---
 
-## Synthé vaporwave — Web Audio API
+## Synthé vaporwave — Web Audio API *(seul élément vaporwave)*
 
 ```typescript
 // Structure : Oscillateurs → GainNode → ConvolverNode (reverb) → destination
