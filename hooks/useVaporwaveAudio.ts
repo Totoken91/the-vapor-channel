@@ -448,6 +448,9 @@ function scheduleAhead(e: Engine) {
 
 function createEngine(): Engine {
   const ctx = new AudioContext();
+  // Some browsers start AudioContext suspended even from a user gesture —
+  // explicitly resume to guarantee playback.
+  if (ctx.state === 'suspended') ctx.resume();
 
   const master = ctx.createGain();
   master.gain.setValueAtTime(0, ctx.currentTime);
@@ -496,7 +499,7 @@ function createEngine(): Engine {
 
   function loop() {
     if (!engine.running) return;
-    scheduleAhead(engine);
+    try { scheduleAhead(engine); } catch (err) { console.warn('audio scheduler:', err); }
     engine.schedulerId = setTimeout(loop, 200);
   }
   loop();
@@ -520,7 +523,12 @@ export function useVaporwaveAudio() {
   useEffect(() => {
     function boot() {
       if (engineRef.current) return;
-      engineRef.current = createEngine();
+      try {
+        engineRef.current = createEngine();
+      } catch (err) {
+        console.warn('audio boot failed:', err);
+        return;
+      }
       window.removeEventListener('click', boot);
       window.removeEventListener('touchstart', boot);
       window.removeEventListener('keydown', boot);
