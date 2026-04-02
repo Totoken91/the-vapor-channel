@@ -22,6 +22,8 @@ function fmtSec(d: Date) { return String(d.getSeconds()).padStart(2, '0'); }
 function fmtAMPM(d: Date) { return d.getHours() >= 12 ? 'PM' : 'AM'; }
 
 const W = 1200, H = 900;
+const PAD_X = 32; // horizontal padding of main container
+const SLIDE_W = W - PAD_X * 2; // actual slide area width
 const PBG = 'rgba(20, 40, 120, 0.88)';
 const PBD = '2px solid #6090d0';
 const PAUSE = 4000;
@@ -473,7 +475,7 @@ export default function WeatherContent({ data, loading }: Props) {
                 animation: `wipeHide ${WIPE_MS}ms ease-in-out forwards`,
               }}>
                 <div style={{
-                  width: `${W}px`, height: '100%',
+                  width: `${SLIDE_W}px`, height: '100%',
                   position: 'absolute', top: 0, right: 0,
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 }}>
@@ -487,7 +489,7 @@ export default function WeatherContent({ data, loading }: Props) {
                 animation: `wipeReveal ${WIPE_MS}ms ease-in-out forwards`,
               }}>
                 <div style={{
-                  width: `${W}px`, height: '100%',
+                  width: `${SLIDE_W}px`, height: '100%',
                   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 }}>
                   {renderSlide(inIdx, data, undefined, false)}
