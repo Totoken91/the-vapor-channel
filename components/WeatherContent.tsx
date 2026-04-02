@@ -363,7 +363,7 @@ function stockIndices(): string {
   ].join('     ');
 }
 
-const SEP = '                              ';
+const SEP = '               ━━━               ';
 
 function buildTicker(d: FullWeatherData): string {
   const w = getWeatherInfo(d.current.weatherCode);
@@ -379,13 +379,13 @@ function buildTicker(d: FullWeatherData): string {
   ];
 
   const msgs = [
-    `${d.current.city.toUpperCase()} : ${d.current.temperature}°C ${w.label}   HUMIDITÉ ${d.current.humidity}%   VENT ${wd} ${d.current.windSpeed} KM/H`,
+    `${d.current.city.toUpperCase()} : ${d.current.temperature}°C ${w.label} ━ HUMIDITÉ ${d.current.humidity}% ━ VENT ${wd} ${d.current.windSpeed} KM/H`,
     poems[0],
-    `MARCHÉS   ${stockIndices()}`,
+    `MARCHÉS ━ ${stockIndices()}`,
     poems[1],
-    `PRÉVISIONS   ${d.daily.map(day => `${day.dayName}: ${day.tempMax}°/${day.tempMin}°`).join('   ')}`,
+    `PRÉVISIONS ━ ${d.daily.map(day => `${day.dayName}: ${day.tempMax}°/${day.tempMin}°`).join(' ━ ')}`,
     poems[2],
-    `LEVER ${d.sun.sunrise}   COUCHER ${d.sun.sunset}   PRESSION ${d.current.pressure} HPA`,
+    `LEVER ${d.sun.sunrise} ━ COUCHER ${d.sun.sunset} ━ PRESSION ${d.current.pressure} HPA`,
     poems[3],
     poems[4],
     poems[5],
