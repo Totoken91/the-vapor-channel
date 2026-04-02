@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+:root {
+  --vw-bg-deep: #0a0015;
+  --vw-sky-top: #0d0030;
+  --vw-sky-mid: #1a0050;
+  --vw-sky-low: #2a0080;
+  --vw-horizon: #ff69b4;
+  --vw-sun-top: #ffee00;
+  --vw-sun-bot: #ff1493;
+  --vw-grid: #00ffff;
+  --vw-pink: #ff69b4;
+  --vw-cyan: #00eeff;
+  --vw-yellow: #ffee00;
+  --vw-panel-bg: rgba(10, 0, 50, 0.82);
+  --vw-text: #ffffff;
+  --vw-text-dim: #aaeeff;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--vw-bg-deep);
+  color: var(--vw-text);
+  font-family: "VT323", "Courier New", monospace;
+  overflow: hidden;
+}
+
+/* ===== Scanlines ===== */
+.scanlines {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  animation: scanroll 8s linear infinite;
+}
+
+@keyframes scanroll {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 200px;
+  }
+}
+
+/* ===== Glitch text ===== */
+.glitch-text {
+  text-shadow:
+    2px 0 var(--vw-pink),
+    -2px 0 var(--vw-cyan);
+}
+
+/* ===== Glitch bar ===== */
+.glitch-bar {
+  position: fixed;
+  left: 0;
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  z-index: 51;
+  pointer-events: none;
+  animation: glitchbar 5s ease-in-out infinite;
+}
+
+@keyframes glitchbar {
+  0%,
+  100% {
+    top: -10px;
+    opacity: 0;
+  }
+  20% {
+    top: 30%;
+    opacity: 1;
+  }
+  21% {
+    top: 32%;
+    opacity: 0;
+  }
+  50% {
+    top: 70%;
+    opacity: 1;
+  }
+  51% {
+    top: 72%;
+    opacity: 0;
+  }
+}
+
+/* ===== VHS grain overlay ===== */
+.vhs-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  pointer-events: none;
+  opacity: 0.06;
+}
