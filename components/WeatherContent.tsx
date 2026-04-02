@@ -576,7 +576,7 @@ export default function WeatherContent({ data, loading }: Props) {
               flex: 1, background: 'rgba(8, 16, 60, 0.94)',
               fontFamily: B, color: '#ffcc00', fontSize: '18px', fontWeight: 700, padding: '7px 14px',
             }}>
-              <div style={{ display: 'inline-block', animation: 'marquee 36s linear infinite' }}>
+              <div style={{ display: 'inline-block', animation: 'marquee 120s linear infinite' }}>
                 {ticker}
               </div>
             </div>
