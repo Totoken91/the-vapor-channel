@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import WeatherBackground from '@/components/SynthwaveBackground';
 import TVStatic from '@/components/TVStatic';
 import { getWeatherInfo } from '@/lib/wmo-codes';
@@ -34,18 +34,27 @@ const SMPTE = ['#ffffff', '#ffcc00', '#00cccc', '#00cc00', '#cc00cc', '#cc0000',
 // useBuild — progressive reveal hook with onDone callback
 // ================================================================
 function useBuild(total: number, ms = 400, onDone?: () => void) {
-  const [s, set] = useState(0);
+  // When onDone is undefined (= wipe transition), show everything instantly
+  const immediate = onDone === undefined;
+  const [s, set] = useState(immediate ? total : 0);
   const doneRef = useRef(false);
   useEffect(() => {
+    if (immediate) { set(total); return; }
     set(0); doneRef.current = false; let c = 0;
     const t = setInterval(() => {
       c++; set(c);
       if (c >= total) { clearInterval(t); if (!doneRef.current) { doneRef.current = true; onDone?.(); } }
     }, ms);
     return () => clearInterval(t);
-  }, [total, ms, onDone]);
+  }, [total, ms, onDone, immediate]);
   return s;
 }
+
+// Opacity-based reveal: element always in DOM (stable layout), fades in
+const reveal = (visible: boolean): React.CSSProperties => ({
+  opacity: visible ? 1 : 0,
+  transition: 'opacity 0.4s ease-out',
+});
 
 // ================================================================
 // LOADING SCREEN — multi-phase TV startup
@@ -181,30 +190,24 @@ function S1({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
         <div style={{ fontFamily: T, color: '#ffd700', fontSize: '28px', fontWeight: 900, marginBottom: '16px' }}>
           {d.current.city.toUpperCase()}{d.current.country ? `, ${d.current.country.toUpperCase()}` : ''}
         </div>
-        <div className="flex items-center" style={{ gap: '20px', marginBottom: '16px', minHeight: '100px' }}>
-          {s >= 1 && (
-            <>
-              <div style={{ fontFamily: T, color: '#ffcc00', fontSize: '100px', fontWeight: 900, lineHeight: 0.9 }}>
-                {d.current.temperature}°
-              </div>
-              <div>
-                <div style={{ fontFamily: T, color: '#fff', fontSize: '34px', fontWeight: 900 }}>{w.icon} {w.label}</div>
-                <div style={{ fontFamily: B, color: '#88ddff', fontSize: '22px', fontWeight: 700, marginTop: '4px' }}>RESSENTI {d.current.feelsLike}°</div>
-              </div>
-            </>
-          )}
+        <div className="flex items-center" style={{ gap: '20px', marginBottom: '16px', ...reveal(s >= 1) }}>
+          <div style={{ fontFamily: T, color: '#ffcc00', fontSize: '100px', fontWeight: 900, lineHeight: 0.9 }}>
+            {d.current.temperature}°
+          </div>
+          <div>
+            <div style={{ fontFamily: T, color: '#fff', fontSize: '34px', fontWeight: 900 }}>{w.icon} {w.label}</div>
+            <div style={{ fontFamily: B, color: '#88ddff', fontSize: '22px', fontWeight: 700, marginTop: '4px' }}>RESSENTI {d.current.feelsLike}°</div>
+          </div>
         </div>
-        <div style={{ borderTop: '1px solid #5080c0', paddingTop: '14px', minHeight: '60px' }}>
-          {s >= 2 && (
-            <div className="grid grid-cols-3" style={{ fontFamily: B, fontSize: '21px', fontWeight: 700, gap: '8px 24px' }}>
-              <div><span style={{ color: '#aaccff' }}>HUMIDITÉ</span> <span style={{ color: '#ffcc00' }}>{d.current.humidity}%</span></div>
-              <div><span style={{ color: '#aaccff' }}>PRESSION</span> <span style={{ color: '#ffcc00' }}>{d.current.pressure} hPa</span></div>
-              <div><span style={{ color: '#aaccff' }}>VENT</span> <span style={{ color: '#ffcc00' }}>{wd} {d.current.windSpeed} km/h</span></div>
-              {s >= 3 && <div><span style={{ color: '#aaccff' }}>RAFALES</span> <span style={{ color: '#ffcc00' }}>{d.current.windGusts} km/h</span></div>}
-              {s >= 3 && <div><span style={{ color: '#aaccff' }}>PT ROSÉE</span> <span style={{ color: '#ffcc00' }}>{d.current.dewPoint}°</span></div>}
-              {s >= 3 && <div><span style={{ color: '#aaccff' }}>VISIBILITÉ</span> <span style={{ color: '#ffcc00' }}>{d.current.visibility} km</span></div>}
-            </div>
-          )}
+        <div style={{ borderTop: '1px solid #5080c0', paddingTop: '14px' }}>
+          <div className="grid grid-cols-3" style={{ fontFamily: B, fontSize: '21px', fontWeight: 700, gap: '8px 24px' }}>
+            <div style={reveal(s >= 2)}><span style={{ color: '#aaccff' }}>HUMIDITÉ</span> <span style={{ color: '#ffcc00' }}>{d.current.humidity}%</span></div>
+            <div style={reveal(s >= 2)}><span style={{ color: '#aaccff' }}>PRESSION</span> <span style={{ color: '#ffcc00' }}>{d.current.pressure} hPa</span></div>
+            <div style={reveal(s >= 2)}><span style={{ color: '#aaccff' }}>VENT</span> <span style={{ color: '#ffcc00' }}>{wd} {d.current.windSpeed} km/h</span></div>
+            <div style={reveal(s >= 3)}><span style={{ color: '#aaccff' }}>RAFALES</span> <span style={{ color: '#ffcc00' }}>{d.current.windGusts} km/h</span></div>
+            <div style={reveal(s >= 3)}><span style={{ color: '#aaccff' }}>PT ROSÉE</span> <span style={{ color: '#ffcc00' }}>{d.current.dewPoint}°</span></div>
+            <div style={reveal(s >= 3)}><span style={{ color: '#aaccff' }}>VISIBILITÉ</span> <span style={{ color: '#ffcc00' }}>{d.current.visibility} km</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -232,16 +235,12 @@ function S2({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
                 borderRight: i < d.hourly.length - 1 ? '1px solid #5080c0' : 'none',
               }}>
                 <div style={{ fontFamily: T, color: '#fff', fontSize: '24px', fontWeight: 900, marginBottom: '16px' }}>{slot.time}</div>
-                {s >= i + 1 ? (
-                  <>
-                    <div style={{ fontSize: '32px', marginBottom: '4px' }}>{w.icon}</div>
-                    <div style={{ fontFamily: B, color: '#d0e0ff', fontSize: '16px', fontWeight: 700, marginBottom: '14px', minHeight: '38px' }}>{w.label}</div>
-                    <div style={{ fontFamily: T, color: '#ffcc00', fontSize: '52px', fontWeight: 900, lineHeight: 1, marginBottom: '8px' }}>{slot.temperature}°</div>
-                    <div style={{ fontFamily: B, color: '#aaccff', fontSize: '15px', fontWeight: 700 }}>{wd} {slot.windSpeed}</div>
-                  </>
-                ) : (
-                  <div style={{ minHeight: '130px' }} />
-                )}
+                <div style={reveal(s >= i + 1)}>
+                  <div style={{ fontSize: '32px', marginBottom: '4px' }}>{w.icon}</div>
+                  <div style={{ fontFamily: B, color: '#d0e0ff', fontSize: '16px', fontWeight: 700, marginBottom: '14px', minHeight: '38px' }}>{w.label}</div>
+                  <div style={{ fontFamily: T, color: '#ffcc00', fontSize: '52px', fontWeight: 900, lineHeight: 1, marginBottom: '8px' }}>{slot.temperature}°</div>
+                  <div style={{ fontFamily: B, color: '#aaccff', fontSize: '15px', fontWeight: 700 }}>{wd} {slot.windSpeed}</div>
+                </div>
               </div>
             );
           })}
@@ -269,16 +268,12 @@ function S3({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
               }}>
                 <div style={{ fontFamily: T, color: '#ffd700', fontSize: '22px', fontWeight: 900 }}>{day.dayName}</div>
                 <div style={{ fontFamily: B, color: '#aaccff', fontSize: '14px', marginBottom: '12px' }}>{day.date}</div>
-                {s >= i + 1 ? (
-                  <>
-                    <div style={{ fontSize: '28px', marginBottom: '4px' }}>{w.icon}</div>
-                    <div style={{ fontFamily: B, color: '#d0e0ff', fontSize: '14px', fontWeight: 700, marginBottom: '12px', minHeight: '34px' }}>{w.label}</div>
-                    <div style={{ fontFamily: T, color: '#ffcc00', fontSize: '36px', fontWeight: 900, lineHeight: 1 }}>{day.tempMax}°</div>
-                    <div style={{ fontFamily: B, color: '#88bbdd', fontSize: '22px', fontWeight: 700 }}>{day.tempMin}°</div>
-                  </>
-                ) : (
-                  <div style={{ minHeight: '100px' }} />
-                )}
+                <div style={reveal(s >= i + 1)}>
+                  <div style={{ fontSize: '28px', marginBottom: '4px' }}>{w.icon}</div>
+                  <div style={{ fontFamily: B, color: '#d0e0ff', fontSize: '14px', fontWeight: 700, marginBottom: '12px', minHeight: '34px' }}>{w.label}</div>
+                  <div style={{ fontFamily: T, color: '#ffcc00', fontSize: '36px', fontWeight: 900, lineHeight: 1 }}>{day.tempMax}°</div>
+                  <div style={{ fontFamily: B, color: '#88bbdd', fontSize: '22px', fontWeight: 700 }}>{day.tempMin}°</div>
+                </div>
               </div>
             );
           })}
@@ -306,30 +301,20 @@ function S4({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', padding: '16px 0', borderTop: '1px solid #5080c0' }}>
           <div style={{ fontFamily: T, color: '#fff', fontSize: '24px', fontWeight: 900 }}>LEVER</div>
-          {s >= 1 ? (
-            <>
-              <div style={{ fontFamily: B, color: '#ffdd66', fontSize: '34px', fontWeight: 700, textAlign: 'center' }}>{d.sun.sunrise}</div>
-              <div style={{ fontFamily: B, color: '#ffdd66', fontSize: '34px', fontWeight: 700, textAlign: 'center' }}>{d.sun.sunriseTomorrow}</div>
-            </>
-          ) : (<><div /><div /></>)}
+          <div style={{ fontFamily: B, color: '#ffdd66', fontSize: '34px', fontWeight: 700, textAlign: 'center', ...reveal(s >= 1) }}>{d.sun.sunrise}</div>
+          <div style={{ fontFamily: B, color: '#ffdd66', fontSize: '34px', fontWeight: 700, textAlign: 'center', ...reveal(s >= 1) }}>{d.sun.sunriseTomorrow}</div>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', padding: '16px 0', borderTop: '1px solid #5080c0' }}>
           <div style={{ fontFamily: T, color: '#fff', fontSize: '24px', fontWeight: 900 }}>COUCHER</div>
-          {s >= 2 ? (
-            <>
-              <div style={{ fontFamily: B, color: '#ff9944', fontSize: '34px', fontWeight: 700, textAlign: 'center' }}>{d.sun.sunset}</div>
-              <div style={{ fontFamily: B, color: '#ff9944', fontSize: '34px', fontWeight: 700, textAlign: 'center' }}>{d.sun.sunsetTomorrow}</div>
-            </>
-          ) : (<><div /><div /></>)}
+          <div style={{ fontFamily: B, color: '#ff9944', fontSize: '34px', fontWeight: 700, textAlign: 'center', ...reveal(s >= 2) }}>{d.sun.sunset}</div>
+          <div style={{ fontFamily: B, color: '#ff9944', fontSize: '34px', fontWeight: 700, textAlign: 'center', ...reveal(s >= 2) }}>{d.sun.sunsetTomorrow}</div>
         </div>
-        <div style={{ borderTop: '1px solid #5080c0', paddingTop: '16px', marginTop: '8px', minHeight: '50px' }}>
-          {s >= 3 && (
-            <div className="grid grid-cols-3" style={{ fontFamily: B, fontSize: '21px', fontWeight: 700, gap: '6px' }}>
-              <div><span style={{ color: '#aaccff' }}>HUMIDITÉ</span> <span style={{ color: '#ffcc00' }}>{d.current.humidity}%</span></div>
-              <div><span style={{ color: '#aaccff' }}>PT ROSÉE</span> <span style={{ color: '#ffcc00' }}>{d.current.dewPoint}°</span></div>
-              <div><span style={{ color: '#aaccff' }}>PRESSION</span> <span style={{ color: '#ffcc00' }}>{d.current.pressure} hPa</span></div>
-            </div>
-          )}
+        <div style={{ borderTop: '1px solid #5080c0', paddingTop: '16px', marginTop: '8px' }}>
+          <div className="grid grid-cols-3" style={{ fontFamily: B, fontSize: '21px', fontWeight: 700, gap: '6px', ...reveal(s >= 3) }}>
+            <div><span style={{ color: '#aaccff' }}>HUMIDITÉ</span> <span style={{ color: '#ffcc00' }}>{d.current.humidity}%</span></div>
+            <div><span style={{ color: '#aaccff' }}>PT ROSÉE</span> <span style={{ color: '#ffcc00' }}>{d.current.dewPoint}°</span></div>
+            <div><span style={{ color: '#aaccff' }}>PRESSION</span> <span style={{ color: '#ffcc00' }}>{d.current.pressure} hPa</span></div>
+          </div>
         </div>
       </div>
     </div>
@@ -436,8 +421,12 @@ export default function WeatherContent({ data, loading }: Props) {
             </div>
           </div>
 
-          {/* Slide title */}
-          <div style={{ fontFamily: B, color: '#fff', fontSize: '32px', fontWeight: 700, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
+          {/* Slide title — fades in on change */}
+          <div key={titleIdx} style={{
+            fontFamily: B, color: '#fff', fontSize: '32px', fontWeight: 700,
+            textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+            animation: 'fadeIn 0.4s ease-out',
+          }}>
             {TITLES[titleIdx]}
           </div>
 
@@ -555,6 +544,7 @@ export default function WeatherContent({ data, loading }: Props) {
         @keyframes wipeReveal { from { width: 0%; } to { width: 100%; } }
         @keyframes wipeHide { from { width: 100%; } to { width: 0%; } }
         @keyframes wipeLine { from { left: 0%; } to { left: 100%; } }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
     </div>
   );
