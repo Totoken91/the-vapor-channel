@@ -157,26 +157,37 @@ void main() {
   col.r = chromaBleed(uv + vec2(px.x * ca, 0.0)).r;
   col.b = chromaBleed(uv - vec2(px.x * ca, 0.0)).b;
 
-  // --- 5. HEAVY OVERALL SOFTNESS (analog signal is blurry!) ---
-  // Multi-tap Gaussian blur in both directions
-  vec3 blurred = vec3(0.0);
-  float bWeight = 0.0;
-  for (int bx = -3; bx <= 3; bx++) {
-    for (int by = -2; by <= 2; by++) {
-      float w = exp(-0.15 * float(bx * bx + by * by));
-      blurred += texture2D(u_tex, uv + vec2(float(bx) * px.x * 1.5, float(by) * px.y * 1.5)).rgb * w;
-      bWeight += w;
-    }
+  // --- 5. HEAVY OVERALL SOFTNESS — the "baveuse" VHS look ---
+  // The key to VHS realism: everything is soft and bleeds together
+  // Two-pass separated Gaussian for wide blur kernel
+  vec3 blurH = vec3(0.0);
+  float bhW = 0.0;
+  for (int i = -5; i <= 5; i++) {
+    float w = exp(-0.08 * float(i * i));
+    blurH += texture2D(u_tex, uv + vec2(float(i) * px.x * 2.0, 0.0)).rgb * w;
+    bhW += w;
   }
-  blurred /= bWeight;
-  col = mix(col, blurred, 0.45); // 45% softness — VHS is BLURRY
+  blurH /= bhW;
 
-  // --- 6. HEAVY GRAIN (big chunky grain like real VHS) ---
-  float grain1 = hash2(floor(gl_FragCoord.xy * 0.3) * 3.33 + ft * 137.0); // ~3x3 pixel blocks
-  float grain2 = hash2(floor(gl_FragCoord.xy * 0.15) * 6.67 + ft * 73.0); // ~7x7 pixel blocks
-  float grain3 = hash2(gl_FragCoord.xy * 0.8 + ft * 211.0); // Fine grain
-  float grain = grain3 * 0.3 + grain1 * 0.4 + grain2 * 0.3;
-  col += (grain - 0.5) * 0.18; // Very visible grain
+  vec3 blurV = vec3(0.0);
+  float bvW = 0.0;
+  for (int i = -3; i <= 3; i++) {
+    float w = exp(-0.12 * float(i * i));
+    blurV += texture2D(u_tex, uv + vec2(0.0, float(i) * px.y * 2.0)).rgb * w;
+    bvW += w;
+  }
+  blurV /= bvW;
+
+  vec3 blurred = (blurH + blurV) * 0.5;
+  col = mix(col, blurred, 0.55); // 55% blur mix — VHS is very soft/smeary
+
+  // --- 6. Fine uniform grain (NOT blocky — real VHS has fine, even noise) ---
+  // Per-pixel noise, changing each frame
+  float grain = hash2(gl_FragCoord.xy + ft * 137.0);
+  // Add slight horizontal correlation (tape grain is slightly streaky)
+  float grainH = hash2(vec2(gl_FragCoord.x + ft * 73.0, floor(gl_FragCoord.y * 0.5)));
+  grain = grain * 0.7 + grainH * 0.3;
+  col += (grain - 0.5) * 0.09;
 
   // --- 7. Scanlines (barely perceptible, ref has almost none) ---
   float scanY = uv.y * u_res.y;
