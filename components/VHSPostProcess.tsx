@@ -366,9 +366,12 @@ export default function VHSPostProcess({ children }: { children: React.ReactNode
     resize();
     window.addEventListener('resize', resize);
 
-    // Initial capture + periodic recapture (for marquee animation etc.)
-    const captureInterval = setInterval(() => captureContent(), 150);
-    captureContent();
+    // Initial capture after a short delay (ensure content is rendered),
+    // then periodic recapture for animations (marquee, clock, etc.)
+    const initialDelay = setTimeout(() => {
+      captureContent();
+    }, 500);
+    const captureInterval = setInterval(() => captureContent(), 200);
 
     // Render loop
     const t0 = performance.now();
@@ -393,6 +396,7 @@ export default function VHSPostProcess({ children }: { children: React.ReactNode
 
     return () => {
       cancelAnimationFrame(animRef.current);
+      clearTimeout(initialDelay);
       clearInterval(captureInterval);
       window.removeEventListener('resize', resize);
     };
@@ -400,14 +404,13 @@ export default function VHSPostProcess({ children }: { children: React.ReactNode
 
   return (
     <>
-      {/* Hidden source content — rendered but not visible */}
+      {/* Offscreen source content — rendered but positioned out of view */}
       <div
         ref={sourceRef}
         style={{
           position: 'fixed',
           top: 0,
-          left: 0,
-          visibility: 'hidden',
+          left: '-9999px',
           pointerEvents: 'none',
           zIndex: -1,
         }}
