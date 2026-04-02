@@ -1,119 +1,66 @@
-export default function SynthwaveBackground() {
+export default function WeatherBackground() {
   return (
     <div className="fixed inset-0 z-0 overflow-hidden">
-      {/* Sky gradient */}
+      {/* Blue sky gradient */}
       <div
         className="absolute inset-0"
         style={{
           background: `linear-gradient(
             to bottom,
-            var(--vw-sky-top) 0%,
-            var(--vw-sky-mid) 30%,
-            var(--vw-sky-low) 50%,
-            #6a0dad 60%,
-            var(--vw-horizon) 72%,
-            #ff8c00 78%,
-            #ff4500 85%,
-            var(--vw-bg-deep) 100%
+            var(--wc-sky-top) 0%,
+            var(--wc-sky-mid) 40%,
+            var(--wc-sky-bot) 100%
           )`,
         }}
       />
 
-      {/* Sun */}
-      <div className="absolute left-1/2 -translate-x-1/2" style={{ top: "18%" }}>
-        <div
-          className="relative rounded-full"
-          style={{
-            width: "180px",
-            height: "180px",
-            background: `linear-gradient(
-              to bottom,
-              var(--vw-sun-top) 0%,
-              #ffaa00 40%,
-              var(--vw-sun-bot) 100%
-            )`,
-            boxShadow: "0 0 80px 20px rgba(255,100,50,0.4), 0 0 160px 60px rgba(255,50,100,0.2)",
-          }}
+      {/* Clouds layer */}
+      <div className="clouds-drift absolute inset-0">
+        <svg
+          className="absolute w-[120%] -left-[10%]"
+          style={{ top: "5%" }}
+          viewBox="0 0 1400 400"
+          preserveAspectRatio="none"
         >
-          {/* Sun stripes (VHS retro look) */}
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute left-0 w-full bg-[var(--vw-bg-deep)]"
-              style={{
-                height: `${3 + i * 1.2}px`,
-                bottom: `${8 + i * 14}px`,
-                opacity: 0.85,
-              }}
-            />
-          ))}
-        </div>
+          {/* Wispy cloud shapes */}
+          <ellipse cx="200" cy="100" rx="180" ry="60" fill="rgba(255,255,255,0.18)" />
+          <ellipse cx="280" cy="90" rx="120" ry="50" fill="rgba(255,255,255,0.22)" />
+          <ellipse cx="150" cy="110" rx="100" ry="40" fill="rgba(255,255,255,0.15)" />
+
+          <ellipse cx="700" cy="150" rx="200" ry="70" fill="rgba(255,255,255,0.15)" />
+          <ellipse cx="780" cy="140" rx="140" ry="55" fill="rgba(255,255,255,0.20)" />
+          <ellipse cx="650" cy="160" rx="110" ry="45" fill="rgba(255,255,255,0.12)" />
+
+          <ellipse cx="1100" cy="80" rx="170" ry="55" fill="rgba(255,255,255,0.16)" />
+          <ellipse cx="1180" cy="70" rx="130" ry="48" fill="rgba(255,255,255,0.20)" />
+          <ellipse cx="1050" cy="90" rx="90" ry="35" fill="rgba(255,255,255,0.13)" />
+
+          <ellipse cx="400" cy="280" rx="220" ry="65" fill="rgba(255,255,255,0.12)" />
+          <ellipse cx="480" cy="270" rx="150" ry="50" fill="rgba(255,255,255,0.16)" />
+          <ellipse cx="350" cy="290" rx="100" ry="40" fill="rgba(255,255,255,0.10)" />
+
+          <ellipse cx="900" cy="320" rx="190" ry="60" fill="rgba(255,255,255,0.10)" />
+          <ellipse cx="970" cy="310" rx="130" ry="45" fill="rgba(255,255,255,0.14)" />
+
+          <ellipse cx="1250" cy="250" rx="160" ry="50" fill="rgba(255,255,255,0.11)" />
+          <ellipse cx="1300" cy="240" rx="100" ry="38" fill="rgba(255,255,255,0.15)" />
+        </svg>
       </div>
 
-      {/* Mountains silhouette */}
-      <svg
-        className="absolute w-full"
-        style={{ bottom: "22%", height: "20%" }}
-        viewBox="0 0 1200 200"
-        preserveAspectRatio="none"
-      >
-        {/* Back mountain range */}
-        <polygon
-          points="0,200 0,120 100,60 200,100 300,40 450,90 550,30 650,80 750,50 850,90 950,35 1050,70 1150,55 1200,80 1200,200"
-          fill="#0a0020"
-          opacity="0.7"
-        />
-        {/* Front mountain range */}
-        <polygon
-          points="0,200 0,150 80,100 180,140 280,80 400,130 500,70 600,120 720,85 820,130 920,75 1020,110 1120,90 1200,120 1200,200"
-          fill="#05000f"
-          opacity="0.9"
-        />
-      </svg>
-
-      {/* Perspective grid */}
-      <div
-        className="absolute left-0 w-full overflow-hidden"
-        style={{
-          bottom: 0,
-          height: "28%",
-          perspective: "400px",
-        }}
-      >
-        <div
-          className="absolute inset-0"
-          style={{
-            transformOrigin: "center top",
-            transform: "rotateX(55deg)",
-            background: `
-              repeating-linear-gradient(
-                90deg,
-                transparent,
-                transparent 58px,
-                var(--vw-grid) 58px,
-                var(--vw-grid) 60px
-              ),
-              repeating-linear-gradient(
-                0deg,
-                transparent,
-                transparent 38px,
-                var(--vw-grid) 38px,
-                var(--vw-grid) 40px
-              )
-            `,
-            opacity: 0.25,
-            animation: "gridScroll 2s linear infinite",
-          }}
-        />
+      {/* Bottom clouds (more opaque, closer feel) */}
+      <div className="absolute bottom-0 left-0 w-full" style={{ height: "30%" }}>
+        <svg
+          className="w-[120%] -ml-[10%] h-full"
+          viewBox="0 0 1400 300"
+          preserveAspectRatio="none"
+        >
+          <ellipse cx="100" cy="200" rx="250" ry="100" fill="rgba(255,255,255,0.25)" />
+          <ellipse cx="350" cy="220" rx="300" ry="120" fill="rgba(255,255,255,0.22)" />
+          <ellipse cx="650" cy="190" rx="280" ry="110" fill="rgba(255,255,255,0.28)" />
+          <ellipse cx="950" cy="210" rx="320" ry="130" fill="rgba(255,255,255,0.24)" />
+          <ellipse cx="1200" cy="195" rx="260" ry="105" fill="rgba(255,255,255,0.26)" />
+        </svg>
       </div>
-
-      {/* Grid scroll animation */}
-      <style>{`
-        @keyframes gridScroll {
-          from { background-position: 0 0; }
-          to { background-position: 0 40px; }
-        }
-      `}</style>
     </div>
   );
 }
