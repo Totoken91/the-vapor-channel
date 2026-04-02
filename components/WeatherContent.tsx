@@ -88,7 +88,7 @@ function LoadingScreen({ now, dataReady, onReady }: {
   // Show production credit mid-way through colorbars
   useEffect(() => {
     if (phase !== 'colorbars') return;
-    const t = setTimeout(() => setShowProduction(true), 1000);
+    const t = setTimeout(() => setShowProduction(true), 1500);
     return () => clearTimeout(t);
   }, [phase]);
 
