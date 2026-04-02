@@ -79,8 +79,8 @@ function LoadingScreen({ now, dataReady, onReady }: {
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase('colorbars'), 1500),
-      setTimeout(() => setPhase('tuning'), 5500),
-      setTimeout(() => setPhase('satellite'), 6000),
+      setTimeout(() => setPhase('tuning'), 4500),
+      setTimeout(() => setPhase('satellite'), 5000),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
