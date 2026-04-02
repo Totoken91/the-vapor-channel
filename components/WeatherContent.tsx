@@ -79,8 +79,8 @@ function LoadingScreen({ now, dataReady, onReady }: {
   useEffect(() => {
     const timers = [
       setTimeout(() => setPhase('colorbars'), 1500),
-      setTimeout(() => setPhase('tuning'), 3500),
-      setTimeout(() => setPhase('satellite'), 4000),
+      setTimeout(() => setPhase('tuning'), 5500),
+      setTimeout(() => setPhase('satellite'), 6000),
     ];
     return () => timers.forEach(clearTimeout);
   }, []);
@@ -439,14 +439,10 @@ export default function WeatherContent({ data, loading }: Props) {
             </div>
           </div>
 
-          {/* Slide title — fades in on change */}
-          <div key={titleIdx} style={{
-            fontFamily: B, color: '#fff', fontSize: '32px', fontWeight: 700,
+          {/* Slide title */}
+          <div style={{
+            fontFamily: B, color: '#ffd700', fontSize: '32px', fontWeight: 700,
             textShadow: '0 0 8px rgba(0,0,0,0.9), 0 0 20px rgba(0,0,0,0.7), 2px 2px 4px rgba(0,0,0,0.8)',
-            animation: 'fadeIn 0.4s ease-out',
-            background: 'rgba(10, 20, 80, 0.65)',
-            padding: '4px 16px',
-            borderRadius: '4px',
           }}>
             {TITLES[titleIdx]}
           </div>
