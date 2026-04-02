@@ -34,19 +34,18 @@ const SMPTE = ['#ffffff', '#ffcc00', '#00cccc', '#00cc00', '#cc00cc', '#cc0000',
 // useBuild — progressive reveal hook with onDone callback
 // ================================================================
 function useBuild(total: number, ms = 400, onDone?: () => void) {
-  // When onDone is undefined (= wipe transition), show everything instantly
-  const immediate = onDone === undefined;
-  const [s, set] = useState(immediate ? total : 0);
+  const [s, set] = useState(0);
   const doneRef = useRef(false);
   useEffect(() => {
-    if (immediate) { set(total); return; }
+    // During wipe (no onDone): stay at 0 — show panel structure only
+    if (!onDone) { set(0); return; }
     set(0); doneRef.current = false; let c = 0;
     const t = setInterval(() => {
       c++; set(c);
-      if (c >= total) { clearInterval(t); if (!doneRef.current) { doneRef.current = true; onDone?.(); } }
+      if (c >= total) { clearInterval(t); if (!doneRef.current) { doneRef.current = true; onDone(); } }
     }, ms);
     return () => clearInterval(t);
-  }, [total, ms, onDone, immediate]);
+  }, [total, ms, onDone]);
   return s;
 }
 
