@@ -186,14 +186,13 @@ export default function WeatherContent({ data, loading }: Props) {
     return () => clearInterval(timer);
   }, []);
 
-  // Cycle slides every 8 seconds
+  // Cycle slides every 8 seconds (always running, independent of data)
   useEffect(() => {
-    if (!data) return;
     const timer = setInterval(() => {
       setSlideIndex(prev => (prev + 1) % 4);
     }, 8000);
     return () => clearInterval(timer);
-  }, [data]);
+  }, []);
 
   // Loading screen
   if (loading || !data) {
