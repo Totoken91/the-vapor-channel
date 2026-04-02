@@ -342,43 +342,55 @@ function S4({ d, onDone, frozen }: { d: FullWeatherData; onDone?: () => void; fr
 // ================================================================
 // TICKER — multiple messages + badge
 // ================================================================
+// Simulated stock indices — seeded from the date so they look consistent within a day
+function stockIndices(): string {
+  const d = new Date();
+  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+  function seededRand(s: number) { const x = Math.sin(s) * 43758.5453; return x - Math.floor(x); }
+  function idx(base: number, s: number) {
+    const change = (seededRand(s) - 0.45) * base * 0.025; // -1.25% to +1.375%
+    const val = base + change;
+    const pct = (change / base) * 100;
+    const sign = pct >= 0 ? '▲' : '▼';
+    return `${val.toFixed(2)} ${sign}${Math.abs(pct).toFixed(2)}%`;
+  }
+  return [
+    `CAC 40 ${idx(7850, seed)}`,
+    `S&P 500 ${idx(5420, seed + 1)}`,
+    `NASDAQ ${idx(17200, seed + 2)}`,
+    `DAX ${idx(18500, seed + 3)}`,
+    `NIKKEI ${idx(39800, seed + 4)}`,
+  ].join('     ');
+}
+
+const SEP = '               ━━━               ';
+
 function buildTicker(d: FullWeatherData): string {
   const w = getWeatherInfo(d.current.weatherCode);
   const wd = degToCardinal(d.current.windDirection);
 
   const poems = [
-    'tu es exactement là où tu dois être en ce moment',
-    'chaque jour est une page blanche que tu peux remplir de lumière',
-    'le meilleur reste à venir, laisse-toi porter',
-    'respire, tout va bien, le ciel veille sur toi',
-    'tu as déjà surmonté tant de tempêtes, celle-ci passera aussi',
-    'même les jours gris préparent les plus beaux levers de soleil',
-    'ta présence illumine le monde plus que tu ne le crois',
-    'prends soin de toi comme tu prendrais soin d\'un ami cher',
-    'le bonheur est déjà là, dans les petites choses qui t\'entourent',
-    'demain sera un jour nouveau, plein de promesses silencieuses',
-    'tu mérites toute la douceur que ce monde peut offrir',
-    'laisse le vent emporter ce qui te pèse, garde ce qui te fait sourire',
+    'TU ES EXACTEMENT LÀ OÙ TU DOIS ÊTRE EN CE MOMENT',
+    'CHAQUE JOUR EST UNE PAGE BLANCHE QUE TU PEUX REMPLIR DE LUMIÈRE',
+    'LE MEILLEUR RESTE À VENIR, LAISSE-TOI PORTER',
+    'RESPIRE, TOUT VA BIEN, LE CIEL VEILLE SUR TOI',
+    'MÊME LES JOURS GRIS PRÉPARENT LES PLUS BEAUX LEVERS DE SOLEIL',
+    'TA PRÉSENCE ILLUMINE LE MONDE PLUS QUE TU NE LE CROIS',
   ];
 
   const msgs = [
     `${d.current.city.toUpperCase()} : ${d.current.temperature}°C ${w.label} ━ HUMIDITÉ ${d.current.humidity}% ━ VENT ${wd} ${d.current.windSpeed} KM/H`,
-    poems[0].toUpperCase(),
-    poems[1].toUpperCase(),
+    poems[0],
+    `MARCHÉS ━ ${stockIndices()}`,
+    poems[1],
     `PRÉVISIONS ━ ${d.daily.map(day => `${day.dayName}: ${day.tempMax}°/${day.tempMin}°`).join(' ━ ')}`,
-    poems[2].toUpperCase(),
-    poems[3].toUpperCase(),
-    `LEVER ${d.sun.sunrise} ━ COUCHER ${d.sun.sunset} ━ PRESSION ${d.current.pressure} HPA ━ VISIBILITÉ ${d.current.visibility} KM`,
-    poems[4].toUpperCase(),
-    poems[5].toUpperCase(),
-    poems[6].toUpperCase(),
-    poems[7].toUpperCase(),
-    poems[8].toUpperCase(),
-    poems[9].toUpperCase(),
-    poems[10].toUpperCase(),
-    poems[11].toUpperCase(),
+    poems[2],
+    `LEVER ${d.sun.sunrise} ━ COUCHER ${d.sun.sunset} ━ PRESSION ${d.current.pressure} HPA`,
+    poems[3],
+    poems[4],
+    poems[5],
   ];
-  return msgs.join(' ━━━ ');
+  return msgs.join(SEP);
 }
 
 const TITLES = ['conditions actuelles', "tomorrow's forecast", 'extended forecast', 'almanac'];

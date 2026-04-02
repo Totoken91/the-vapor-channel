@@ -352,11 +352,18 @@ export default function VHSPostProcess({ children }: { children: React.ReactNode
     window.addEventListener('resize', resize);
 
     // Initial capture after a short delay (ensure content is rendered),
-    // then periodic recapture for animations (marquee, clock, etc.)
+    // then recursive capture to avoid stacking (html2canvas is async)
+    let captureTimer: ReturnType<typeof setTimeout>;
+    function scheduleCapture() {
+      captureTimer = setTimeout(async () => {
+        await captureContent();
+        scheduleCapture();
+      }, 66); // ~15fps
+    }
     const initialDelay = setTimeout(() => {
       captureContent();
+      scheduleCapture();
     }, 500);
-    const captureInterval = setInterval(() => captureContent(), 100);
 
     // Render loop
     const t0 = performance.now();
@@ -382,7 +389,7 @@ export default function VHSPostProcess({ children }: { children: React.ReactNode
     return () => {
       cancelAnimationFrame(animRef.current);
       clearTimeout(initialDelay);
-      clearInterval(captureInterval);
+      clearTimeout(captureTimer);
       window.removeEventListener('resize', resize);
     };
   }, [captureContent]);
