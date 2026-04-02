@@ -30,61 +30,6 @@ body {
   height: 100vh;
 }
 
-/* ===== 4:3 CRT container ===== */
-.crt-frame {
-  position: relative;
-  width: 100%;
-  max-height: 100vh;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
-  margin: 0 auto;
-  /* CRT barrel curvature — subtle outward bulge */
-  border-radius: 12px;
-}
-
-@media (min-aspect-ratio: 4/3) {
-  .crt-frame {
-    height: 100vh;
-    width: auto;
-  }
-}
-
-/* ===== VHS-filtered content layer ===== */
-.vhs-content {
-  /* Apply SVG displacement for REAL content warping */
-  filter: url(#vhs-warp);
-  /* Analog signal softness */
-  image-rendering: auto;
-}
-
-/* ===== Chromatic aberration layer ===== */
-.vhs-chroma {
-  filter: url(#vhs-chroma);
-}
-
-/* ===== CRT glass reflections + edge shadow ===== */
-.crt-frame::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: 55;
-  pointer-events: none;
-  /* Glass reflection highlight */
-  background:
-    radial-gradient(
-      ellipse at 30% 20%,
-      rgba(255, 255, 255, 0.04) 0%,
-      transparent 50%
-    ),
-    /* Edge shadow (tube curvature) */
-    radial-gradient(
-      ellipse at center,
-      transparent 55%,
-      rgba(0, 0, 0, 0.35) 100%
-    );
-  border-radius: inherit;
-}
-
 /* ===== Broadcast panel ===== */
 .broadcast-panel {
   background: var(--wc-panel-bg);
@@ -98,7 +43,6 @@ body {
   border-bottom: 2px solid var(--wc-panel-border);
   padding: 5px 12px;
   font-family: "VT323", "Courier New", monospace;
-  font-size: 1.2rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--wc-white);
