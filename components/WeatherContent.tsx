@@ -21,13 +21,19 @@ const W = 1200, H = 900;
 const PBG = 'rgba(20, 40, 120, 0.88)';
 const PBD = '2px solid #6090d0';
 
-function useBuild(total: number, ms = 400) {
+const PAUSE = 4000; // ms to hold after animation finishes
+
+function useBuild(total: number, ms = 400, onDone?: () => void) {
   const [s, set] = useState(0);
+  const doneRef = useRef(false);
   useEffect(() => {
-    set(0); let c = 0;
-    const t = setInterval(() => { c++; set(c); if (c >= total) clearInterval(t); }, ms);
+    set(0); doneRef.current = false; let c = 0;
+    const t = setInterval(() => {
+      c++; set(c);
+      if (c >= total) { clearInterval(t); if (!doneRef.current) { doneRef.current = true; onDone?.(); } }
+    }, ms);
     return () => clearInterval(t);
-  }, [total, ms]);
+  }, [total, ms, onDone]);
   return s;
 }
 
@@ -35,10 +41,10 @@ function useBuild(total: number, ms = 400) {
 // SLIDE 1: CONDITIONS ACTUELLES
 // Panel structure always visible, data fills in progressively
 // ================================================================
-function S1({ d }: { d: FullWeatherData }) {
+function S1({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
   const w = getWeatherInfo(d.current.weatherCode);
   const wd = degToCardinal(d.current.windDirection);
-  const s = useBuild(3, 500);
+  const s = useBuild(3, 500, onDone);
 
   return (
     <div style={{ width: '88%' }}>
@@ -85,8 +91,8 @@ function S1({ d }: { d: FullWeatherData }) {
 // SLIDE 2: TOMORROW'S FORECAST
 // Panel + column headers visible immediately, data fills column by column
 // ================================================================
-function S2({ d }: { d: FullWeatherData }) {
-  const s = useBuild(d.hourly.length, 500);
+function S2({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
+  const s = useBuild(d.hourly.length, 500, onDone);
   return (
     <div style={{ width: '88%' }}>
       {/* City name above panel */}
@@ -128,8 +134,8 @@ function S2({ d }: { d: FullWeatherData }) {
 // SLIDE 3: 5-DAY FORECAST
 // Panel + day headers visible immediately, data fills day by day
 // ================================================================
-function S3({ d }: { d: FullWeatherData }) {
-  const s = useBuild(d.daily.length, 400);
+function S3({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
+  const s = useBuild(d.daily.length, 400, onDone);
   return (
     <div style={{ width: '88%' }}>
       <div style={{ background: PBG, border: PBD }}>
@@ -167,10 +173,10 @@ function S3({ d }: { d: FullWeatherData }) {
 // SLIDE 4: ALMANAC
 // Table structure visible immediately, rows fill in progressively
 // ================================================================
-function S4({ d }: { d: FullWeatherData }) {
+function S4({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
   const today = new Date();
   const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-  const s = useBuild(3, 500);
+  const s = useBuild(3, 500, onDone);
 
   return (
     <div style={{ width: '88%' }}>
@@ -229,16 +235,27 @@ export default function WeatherContent({ data, loading }: Props) {
   const [now, setNow] = useState(new Date());
   const [idx, setIdx] = useState(0);
   const [show, setShow] = useState(true);
-  const ref = useRef(0);
+  const idxRef = useRef(0);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
-  const cycle = useCallback(() => {
-    setShow(false);
-    setTimeout(() => { ref.current = (ref.current + 1) % N; setIdx(ref.current); setShow(true); }, 250);
+  // Called by each slide when its build animation finishes
+  const onSlideDone = useCallback(() => {
+    // Wait PAUSE ms after animation ends, then transition
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      setShow(false);
+      setTimeout(() => {
+        idxRef.current = (idxRef.current + 1) % N;
+        setIdx(idxRef.current);
+        setShow(true);
+      }, 250);
+    }, PAUSE);
   }, []);
 
-  useEffect(() => { const t = setInterval(cycle, 8000); return () => clearInterval(t); }, [cycle]);
+  // Cleanup timer on unmount
+  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
 
   if (loading || !data) {
     return (
@@ -281,10 +298,10 @@ export default function WeatherContent({ data, loading }: Props) {
 
         {/* Slide */}
         <div className="flex-1 flex flex-col items-center justify-center">
-          {show && idx === 0 && <S1 key="s0" d={data} />}
-          {show && idx === 1 && <S2 key="s1" d={data} />}
-          {show && idx === 2 && <S3 key="s2" d={data} />}
-          {show && idx === 3 && <S4 key="s3" d={data} />}
+          {show && idx === 0 && <S1 key="s0" d={data} onDone={onSlideDone} />}
+          {show && idx === 1 && <S2 key="s1" d={data} onDone={onSlideDone} />}
+          {show && idx === 2 && <S3 key="s2" d={data} onDone={onSlideDone} />}
+          {show && idx === 3 && <S4 key="s3" d={data} onDone={onSlideDone} />}
         </div>
 
         {/* Bottom */}
