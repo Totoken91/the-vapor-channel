@@ -1,17 +1,16 @@
 'use client';
 
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 
 // ── Vaporwave generative music engine ──────────────────────────────
 // Slow tempo, lush detuned pads, jazzy 7th/9th chords, lo-fi reverb,
 // tape warble, randomised arpeggios.
-// Single persistent AudioContext — suspend/resume for toggle.
+// Auto-starts on first user interaction (browser autoplay policy).
 
 const BPM = 72;
 const BEAT = 60 / BPM;
 const BAR = BEAT * 4;
-const FADE_IN = 1.0;   // seconds
-const FADE_OUT = 0.5;
+const FADE_IN = 1.5;
 
 // Chord progression (MIDI) — Fmaj9 → Dm7 → Bbmaj7 → C9
 const CHORDS: number[][] = [
@@ -74,10 +73,10 @@ function playPad(e: Engine, chord: number[], time: number) {
     osc1.frequency.setValueAtTime(freq, time);
     osc2.frequency.setValueAtTime(freq * 1.003, time);
 
-    // Tape warble: connect the shared warble LFO to each osc's detune
+    // Tape warble: shared LFO → per-osc frequency modulation
     const w1 = ctx.createGain();
     const w2 = ctx.createGain();
-    w1.gain.setValueAtTime(freq * 0.002, time); // ±0.2% = ~3.5 cents
+    w1.gain.setValueAtTime(freq * 0.002, time);
     w2.gain.setValueAtTime(freq * 0.002, time);
     e.warbleGain.connect(w1);
     e.warbleGain.connect(w2);
@@ -108,7 +107,6 @@ function playPad(e: Engine, chord: number[], time: number) {
     osc1.stop(time + dur + 0.1);
     osc2.stop(time + dur + 0.1);
 
-    // Cleanup nodes when done
     osc1.onended = () => {
       osc1.disconnect(); osc2.disconnect();
       filter.disconnect(); gain.disconnect();
@@ -159,7 +157,6 @@ function playArp(e: Engine, chord: number[], barStart: number) {
   const notes = [chord[2], chord[3], chord[4], chord[3]];
 
   notes.forEach((note, i) => {
-    // 20% chance to skip this note
     if (Math.random() < 0.2) return;
 
     const time = barStart + step * i;
@@ -208,13 +205,11 @@ function scheduleAhead(e: Engine) {
 function createEngine(): Engine {
   const ctx = new AudioContext();
 
-  // Master gain — starts at 0 for fade-in
   const master = ctx.createGain();
   master.gain.setValueAtTime(0, ctx.currentTime);
   master.gain.linearRampToValueAtTime(0.7, ctx.currentTime + FADE_IN);
   master.connect(ctx.destination);
 
-  // Reverb send
   const reverb = createReverb(ctx);
   const reverbGain = ctx.createGain();
   reverbGain.gain.setValueAtTime(0.5, ctx.currentTime);
@@ -235,8 +230,8 @@ function createEngine(): Engine {
   const warbleLfo = ctx.createOscillator();
   const warbleGain = ctx.createGain();
   warbleLfo.type = 'sine';
-  warbleLfo.frequency.setValueAtTime(0.05, ctx.currentTime); // very slow
-  warbleGain.gain.setValueAtTime(1, ctx.currentTime); // scaled per-osc in playPad
+  warbleLfo.frequency.setValueAtTime(0.05, ctx.currentTime);
+  warbleGain.gain.setValueAtTime(1, ctx.currentTime);
   warbleLfo.connect(warbleGain);
   warbleLfo.start();
 
@@ -248,44 +243,14 @@ function createEngine(): Engine {
     schedulerId: null,
   };
 
-  startScheduler(engine);
-  return engine;
-}
-
-function startScheduler(e: Engine) {
   function loop() {
-    if (!e.running) return;
-    scheduleAhead(e);
-    e.schedulerId = setTimeout(loop, 200);
+    if (!engine.running) return;
+    scheduleAhead(engine);
+    engine.schedulerId = setTimeout(loop, 200);
   }
   loop();
-}
 
-function suspendEngine(e: Engine) {
-  e.running = false;
-  if (e.schedulerId !== null) { clearTimeout(e.schedulerId); e.schedulerId = null; }
-
-  // Proper fade-out: cancel LFO interference, ramp from current value
-  const now = e.ctx.currentTime;
-  e.master.gain.cancelScheduledValues(now);
-  e.master.gain.setValueAtTime(e.master.gain.value, now);
-  e.master.gain.linearRampToValueAtTime(0, now + FADE_OUT);
-
-  setTimeout(() => { if (!e.running) e.ctx.suspend(); }, (FADE_OUT + 0.1) * 1000);
-}
-
-function resumeEngine(e: Engine) {
-  e.ctx.resume().then(() => {
-    e.running = true;
-    e.nextChordTime = e.ctx.currentTime + 0.1;
-
-    // Fade-in
-    e.master.gain.cancelScheduledValues(e.ctx.currentTime);
-    e.master.gain.setValueAtTime(0, e.ctx.currentTime);
-    e.master.gain.linearRampToValueAtTime(0.7, e.ctx.currentTime + FADE_IN);
-
-    startScheduler(e);
-  });
+  return engine;
 }
 
 function destroyEngine(e: Engine) {
@@ -296,35 +261,33 @@ function destroyEngine(e: Engine) {
   e.ctx.close();
 }
 
-// ── React hook ─────────────────────────────────────────────────────
+// ── React hook — auto-start on first interaction ───────────────────
 
 export function useVaporwaveAudio() {
   const engineRef = useRef<Engine | null>(null);
-  const [playing, setPlaying] = useState(false);
 
-  const toggle = useCallback(() => {
-    if (!engineRef.current) {
-      // First click — create engine (satisfies autoplay gesture requirement)
-      engineRef.current = createEngine();
-      setPlaying(true);
-    } else if (engineRef.current.running) {
-      suspendEngine(engineRef.current);
-      setPlaying(false);
-    } else {
-      resumeEngine(engineRef.current);
-      setPlaying(true);
-    }
-  }, []);
-
-  // Cleanup on unmount
   useEffect(() => {
+    function boot() {
+      if (engineRef.current) return;
+      engineRef.current = createEngine();
+      // Remove listeners once audio is started
+      window.removeEventListener('click', boot);
+      window.removeEventListener('touchstart', boot);
+      window.removeEventListener('keydown', boot);
+    }
+
+    window.addEventListener('click', boot, { once: false });
+    window.addEventListener('touchstart', boot, { once: false });
+    window.addEventListener('keydown', boot, { once: false });
+
     return () => {
+      window.removeEventListener('click', boot);
+      window.removeEventListener('touchstart', boot);
+      window.removeEventListener('keydown', boot);
       if (engineRef.current) {
         destroyEngine(engineRef.current);
         engineRef.current = null;
       }
     };
   }, []);
-
-  return { playing, toggle };
 }
