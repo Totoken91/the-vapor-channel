@@ -385,6 +385,44 @@ const TITLES = ['conditions actuelles', "tomorrow's forecast", 'extended forecas
 const N = 4;
 
 // ================================================================
+// MARQUEE — JS-driven for html2canvas compatibility
+// ================================================================
+function Marquee({ text, speed = 80 }: { text: string; speed?: number }) {
+  const textRef = useRef<HTMLSpanElement>(null);
+  const xRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const el = textRef.current;
+    if (!el) return;
+    const parent = el.parentElement;
+    if (!parent) return;
+
+    let raf: number;
+    let last = performance.now();
+
+    function tick(now: number) {
+      const dt = (now - last) / 1000;
+      last = now;
+      const pw = parent!.offsetWidth;
+      const tw = el!.offsetWidth;
+      if (xRef.current === null) xRef.current = pw;
+      xRef.current -= speed * dt;
+      if (xRef.current < -tw) xRef.current = pw;
+      el!.style.transform = `translateX(${xRef.current}px)`;
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [text, speed]);
+
+  return (
+    <span ref={textRef} style={{ display: 'inline-block', whiteSpace: 'nowrap' }}>
+      {text}
+    </span>
+  );
+}
+
+// ================================================================
 // MAIN COMPONENT
 // ================================================================
 interface Props { data: FullWeatherData | null; loading: boolean; }
@@ -571,21 +609,18 @@ export default function WeatherContent({ data, loading }: Props) {
             }}>
               MÉTÉO EN DIRECT
             </div>
-            {/* Scrolling area */}
+            {/* Scrolling area — JS-driven marquee for html2canvas compatibility */}
             <div className="overflow-hidden whitespace-nowrap" style={{
               flex: 1, background: 'rgba(8, 16, 60, 0.94)',
               fontFamily: B, color: '#ffcc00', fontSize: '18px', fontWeight: 700, padding: '7px 14px',
             }}>
-              <div style={{ display: 'inline-block', animation: 'marquee 120s linear infinite' }}>
-                {ticker}
-              </div>
+              <Marquee text={ticker} speed={80} />
             </div>
           </div>
         </div>
       </div>
       <style>{`
-        @keyframes marquee { from { transform: translateX(${W}px); } to { transform: translateX(-100%); } }
-        @keyframes wipeReveal { from { width: 0%; } to { width: 100%; } }
+@keyframes wipeReveal { from { width: 0%; } to { width: 100%; } }
         @keyframes wipeHide { from { width: 100%; } to { width: 0%; } }
         @keyframes wipeLine { from { left: 0%; } to { left: 100%; } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
