@@ -10,7 +10,7 @@ const VERT = `
 attribute vec2 a_pos;
 varying vec2 v_uv;
 void main() {
-  v_uv = a_pos * 0.5 + 0.5;
+  v_uv = vec2(1.0 - (a_pos.x * 0.5 + 0.5), a_pos.y * 0.5 + 0.5);
   gl_Position = vec4(a_pos, 0.0, 1.0);
 }
 `;
@@ -297,6 +297,7 @@ export default function VHSPostProcess({ children }: { children: React.ReactNode
       }
 
       gl.bindTexture(gl.TEXTURE_2D, textureRef.current);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, capturedCanvas);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
