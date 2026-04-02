@@ -270,7 +270,7 @@ export default function VHSPostProcess({ children }: { children: React.ReactNode
     try {
       const capturedCanvas = await html2canvas(source, {
         backgroundColor: '#000000',
-        scale: 2,
+        scale: 1,
         logging: false,
         useCORS: true,
         allowTaint: true,
@@ -356,7 +356,7 @@ export default function VHSPostProcess({ children }: { children: React.ReactNode
     const initialDelay = setTimeout(() => {
       captureContent();
     }, 500);
-    const captureInterval = setInterval(() => captureContent(), 200);
+    const captureInterval = setInterval(() => captureContent(), 100);
 
     // Render loop
     const t0 = performance.now();

@@ -614,7 +614,7 @@ export default function WeatherContent({ data, loading }: Props) {
               flex: 1, background: 'rgba(8, 16, 60, 0.94)',
               fontFamily: B, color: '#ffcc00', fontSize: '18px', fontWeight: 700, padding: '7px 14px',
             }}>
-              <Marquee text={ticker} speed={80} />
+              <Marquee text={ticker} speed={50} />
             </div>
           </div>
         </div>
