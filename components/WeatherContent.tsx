@@ -187,7 +187,7 @@ function S1({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
                 {d.current.temperature}°
               </div>
               <div>
-                <div style={{ fontFamily: T, color: '#fff', fontSize: '34px', fontWeight: 900 }}>{w.label}</div>
+                <div style={{ fontFamily: T, color: '#fff', fontSize: '34px', fontWeight: 900 }}>{w.icon} {w.label}</div>
                 <div style={{ fontFamily: B, color: '#88ddff', fontSize: '22px', fontWeight: 700, marginTop: '4px' }}>RESSENTI {d.current.feelsLike}°</div>
               </div>
             </>
@@ -233,6 +233,7 @@ function S2({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
                 <div style={{ fontFamily: T, color: '#fff', fontSize: '24px', fontWeight: 900, marginBottom: '16px' }}>{slot.time}</div>
                 {s >= i + 1 ? (
                   <>
+                    <div style={{ fontSize: '32px', marginBottom: '4px' }}>{w.icon}</div>
                     <div style={{ fontFamily: B, color: '#d0e0ff', fontSize: '16px', fontWeight: 700, marginBottom: '14px', minHeight: '38px' }}>{w.label}</div>
                     <div style={{ fontFamily: T, color: '#ffcc00', fontSize: '52px', fontWeight: 900, lineHeight: 1, marginBottom: '8px' }}>{slot.temperature}°</div>
                     <div style={{ fontFamily: B, color: '#aaccff', fontSize: '15px', fontWeight: 700 }}>{wd} {slot.windSpeed}</div>
@@ -269,6 +270,7 @@ function S3({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
                 <div style={{ fontFamily: B, color: '#aaccff', fontSize: '14px', marginBottom: '12px' }}>{day.date}</div>
                 {s >= i + 1 ? (
                   <>
+                    <div style={{ fontSize: '28px', marginBottom: '4px' }}>{w.icon}</div>
                     <div style={{ fontFamily: B, color: '#d0e0ff', fontSize: '14px', fontWeight: 700, marginBottom: '12px', minHeight: '34px' }}>{w.label}</div>
                     <div style={{ fontFamily: T, color: '#ffcc00', fontSize: '36px', fontWeight: 900, lineHeight: 1 }}>{day.tempMax}°</div>
                     <div style={{ fontFamily: B, color: '#88bbdd', fontSize: '22px', fontWeight: 700 }}>{day.tempMin}°</div>
@@ -471,14 +473,21 @@ export default function WeatherContent({ data, loading }: Props) {
         <div className="flex-1 flex flex-col items-center justify-center" style={{ position: 'relative', overflow: 'hidden' }}>
           {wiping ? (
             <>
-              {/* Outgoing slide — sits underneath, fully visible */}
+              {/* Outgoing slide — shrinks from right, clipped from left */}
               <div style={{
-                position: 'absolute', inset: 0,
-                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                position: 'absolute', top: 0, bottom: 0, right: 0,
+                overflow: 'hidden',
+                animation: `wipeHide ${WIPE_MS}ms ease-in-out forwards`,
               }}>
-                {renderSlide(outIdx, data, undefined)}
+                <div style={{
+                  width: `${W}px`, height: '100%',
+                  position: 'absolute', top: 0, right: 0,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {renderSlide(outIdx, data, undefined)}
+                </div>
               </div>
-              {/* Incoming slide — revealed via width-growing wrapper (html2canvas compatible) */}
+              {/* Incoming slide — revealed from left via width-growing wrapper */}
               <div style={{
                 position: 'absolute', top: 0, bottom: 0, left: 0,
                 overflow: 'hidden',
@@ -542,6 +551,7 @@ export default function WeatherContent({ data, loading }: Props) {
       <style>{`
         @keyframes marquee { from { transform: translateX(${W}px); } to { transform: translateX(-100%); } }
         @keyframes wipeReveal { from { width: 0%; } to { width: 100%; } }
+        @keyframes wipeHide { from { width: 100%; } to { width: 0%; } }
         @keyframes wipeLine { from { left: 0%; } to { left: 100%; } }
       `}</style>
     </div>
