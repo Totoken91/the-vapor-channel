@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import WeatherBackground from '@/components/SynthwaveBackground';
+import TVStatic from '@/components/TVStatic';
 import { getWeatherInfo } from '@/lib/wmo-codes';
 import { degToCardinal } from '@/lib/wind-direction';
 import type { FullWeatherData } from '@/lib/weather';
@@ -12,17 +13,25 @@ const JOURS = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM'];
 const MOIS = ['JAN', 'FÉV', 'MAR', 'AVR', 'MAI', 'JUN', 'JUL', 'AOÛ', 'SEP', 'OCT', 'NOV', 'DÉC'];
 
 function fmtDate(d: Date) { return `${JOURS[d.getDay()]} ${MOIS[d.getMonth()]} ${String(d.getDate()).padStart(2, '0')}`; }
-function fmtTime(d: Date) {
-  const h = d.getHours(), m = String(d.getMinutes()).padStart(2, '0'), s = String(d.getSeconds()).padStart(2, '0');
-  return `${h % 12 || 12}:${m}:${s} ${h >= 12 ? 'PM' : 'AM'}`;
+function fmtHM(d: Date) {
+  const h = d.getHours();
+  return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+function fmtSec(d: Date) { return String(d.getSeconds()).padStart(2, '0'); }
+function fmtAMPM(d: Date) { return d.getHours() >= 12 ? 'PM' : 'AM'; }
 
 const W = 1200, H = 900;
 const PBG = 'rgba(20, 40, 120, 0.88)';
 const PBD = '2px solid #6090d0';
+const PAUSE = 4000;
+const WIPE_MS = 400;
 
-const PAUSE = 4000; // ms to hold after animation finishes
+// SMPTE color bars
+const SMPTE = ['#ffffff', '#ffcc00', '#00cccc', '#00cc00', '#cc00cc', '#cc0000', '#0000cc'];
 
+// ================================================================
+// useBuild — progressive reveal hook with onDone callback
+// ================================================================
 function useBuild(total: number, ms = 400, onDone?: () => void) {
   const [s, set] = useState(0);
   const doneRef = useRef(false);
@@ -38,8 +47,127 @@ function useBuild(total: number, ms = 400, onDone?: () => void) {
 }
 
 // ================================================================
+// LOADING SCREEN — multi-phase TV startup
+// ================================================================
+type LoadPhase = 'static' | 'colorbars' | 'tuning' | 'satellite' | 'done';
+
+function LoadingScreen({ now, dataReady, onReady }: {
+  now: Date;
+  dataReady: boolean;
+  onReady: () => void;
+}) {
+  const [phase, setPhase] = useState<LoadPhase>('static');
+  const [dots, setDots] = useState('');
+  const [signalAcquired, setSignalAcquired] = useState(false);
+
+  // Phase transitions
+  useEffect(() => {
+    const timers = [
+      setTimeout(() => setPhase('colorbars'), 1500),
+      setTimeout(() => setPhase('tuning'), 3500),
+      setTimeout(() => setPhase('satellite'), 4000),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  // Animated dots for satellite text
+  useEffect(() => {
+    if (phase !== 'satellite') return;
+    const t = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 500);
+    return () => clearInterval(t);
+  }, [phase]);
+
+  // Handle data arrival in satellite phase
+  useEffect(() => {
+    if (phase === 'satellite' && dataReady && !signalAcquired) {
+      setSignalAcquired(true);
+      setTimeout(onReady, 1200);
+    }
+  }, [phase, dataReady, signalAcquired, onReady]);
+
+  // If data arrived before satellite phase, trigger once we reach it
+  useEffect(() => {
+    if (phase === 'done') return;
+    if (phase !== 'satellite' && dataReady) return; // wait for satellite phase
+  }, [phase, dataReady]);
+
+  return (
+    <div className="relative" style={{ width: `${W}px`, height: `${H}px`, background: '#000', overflow: 'hidden' }}>
+      {/* Phase 1: Pure TV static */}
+      {phase === 'static' && (
+        <TVStatic width={W} height={H} />
+      )}
+
+      {/* Phase 2: SMPTE Color bars */}
+      {phase === 'colorbars' && (
+        <div className="relative" style={{ width: '100%', height: '100%' }}>
+          <div style={{ display: 'flex', height: '100%' }}>
+            {SMPTE.map((c, i) => (
+              <div key={i} style={{ flex: 1, background: c }} />
+            ))}
+          </div>
+          {/* Channel ID overlay */}
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            background: 'rgba(0,0,0,0.7)', padding: '16px 32px', borderRadius: '4px',
+          }}>
+            <div style={{ fontFamily: T, color: '#fff', fontSize: '28px', fontWeight: 900, textAlign: 'center' }}>
+              THE VAPOR CHANNEL
+            </div>
+          </div>
+          {/* Static overlay for texture */}
+          <div style={{ position: 'absolute', inset: 0 }}>
+            <TVStatic width={W} height={H} opacity={0.15} />
+          </div>
+        </div>
+      )}
+
+      {/* Phase 3: Tuning flash (intense static) */}
+      {phase === 'tuning' && (
+        <TVStatic width={W} height={H} />
+      )}
+
+      {/* Phase 4: Satellite connection */}
+      {phase === 'satellite' && (
+        <div className="flex items-center justify-center" style={{ width: '100%', height: '100%', background: '#0a1530' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: T, color: '#88ddff', fontSize: '36px', fontWeight: 900, marginBottom: '24px' }}>
+              THE VAPOR CHANNEL
+            </div>
+            {signalAcquired ? (
+              <div style={{ fontFamily: B, color: '#44ff88', fontSize: '24px', fontWeight: 700 }}>
+                SIGNAL ACQUIS
+              </div>
+            ) : (
+              <div style={{ fontFamily: B, color: '#ffcc00', fontSize: '24px', fontWeight: 700, animation: 'pulse 1.5s ease-in-out infinite' }}>
+                CONNEXION AU SATELLITE{dots}
+              </div>
+            )}
+            <div style={{ fontFamily: B, color: '#aaccff', fontSize: '18px', marginTop: '16px' }}>
+              {fmtDate(now)} — {fmtHM(now)}:{fmtSec(now)} {fmtAMPM(now)}
+            </div>
+            {/* Progress bar */}
+            <div style={{ marginTop: '24px', width: '300px', height: '4px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px', margin: '24px auto 0' }}>
+              <div style={{
+                height: '100%', borderRadius: '2px',
+                background: signalAcquired ? '#44ff88' : 'linear-gradient(to right, #1a4a9a, #ffcc00)',
+                width: signalAcquired ? '100%' : '70%',
+                transition: 'width 0.5s ease, background 0.3s ease',
+              }} />
+            </div>
+          </div>
+          {/* Faint static overlay */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+            <TVStatic width={W} height={H} opacity={0.05} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ================================================================
 // SLIDE 1: CONDITIONS ACTUELLES
-// Panel structure always visible, data fills in progressively
 // ================================================================
 function S1({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
   const w = getWeatherInfo(d.current.weatherCode);
@@ -49,12 +177,9 @@ function S1({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
   return (
     <div style={{ width: '88%' }}>
       <div style={{ background: PBG, border: PBD, padding: '20px 28px' }}>
-        {/* City name — always visible as part of panel structure */}
         <div style={{ fontFamily: T, color: '#ffd700', fontSize: '28px', fontWeight: 900, marginBottom: '16px' }}>
           {d.current.city.toUpperCase()}{d.current.country ? `, ${d.current.country.toUpperCase()}` : ''}
         </div>
-
-        {/* Main weather: temp + condition — step 1 */}
         <div className="flex items-center" style={{ gap: '20px', marginBottom: '16px', minHeight: '100px' }}>
           {s >= 1 && (
             <>
@@ -68,8 +193,6 @@ function S1({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
             </>
           )}
         </div>
-
-        {/* Separator + details — step 2 */}
         <div style={{ borderTop: '1px solid #5080c0', paddingTop: '14px', minHeight: '60px' }}>
           {s >= 2 && (
             <div className="grid grid-cols-3" style={{ fontFamily: B, fontSize: '21px', fontWeight: 700, gap: '8px 24px' }}>
@@ -89,13 +212,11 @@ function S1({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
 
 // ================================================================
 // SLIDE 2: TOMORROW'S FORECAST
-// Panel + column headers visible immediately, data fills column by column
 // ================================================================
 function S2({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
   const s = useBuild(d.hourly.length, 500, onDone);
   return (
     <div style={{ width: '88%' }}>
-      {/* City name above panel */}
       <div style={{ fontFamily: T, color: '#ffd700', fontSize: '24px', fontWeight: 900, marginBottom: '8px', padding: '0 4px' }}>
         {d.current.city.toUpperCase()}
       </div>
@@ -109,9 +230,7 @@ function S2({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
                 textAlign: 'center', padding: '16px 8px',
                 borderRight: i < d.hourly.length - 1 ? '1px solid #5080c0' : 'none',
               }}>
-                {/* Time header — always visible */}
                 <div style={{ fontFamily: T, color: '#fff', fontSize: '24px', fontWeight: 900, marginBottom: '16px' }}>{slot.time}</div>
-                {/* Data fills in per column */}
                 {s >= i + 1 ? (
                   <>
                     <div style={{ fontFamily: B, color: '#d0e0ff', fontSize: '16px', fontWeight: 700, marginBottom: '14px', minHeight: '38px' }}>{w.label}</div>
@@ -132,7 +251,6 @@ function S2({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
 
 // ================================================================
 // SLIDE 3: 5-DAY FORECAST
-// Panel + day headers visible immediately, data fills day by day
 // ================================================================
 function S3({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
   const s = useBuild(d.daily.length, 400, onDone);
@@ -147,10 +265,8 @@ function S3({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
                 textAlign: 'center', padding: '14px 6px',
                 borderRight: i < d.daily.length - 1 ? '1px solid #5080c0' : 'none',
               }}>
-                {/* Day headers — always visible */}
                 <div style={{ fontFamily: T, color: '#ffd700', fontSize: '22px', fontWeight: 900 }}>{day.dayName}</div>
                 <div style={{ fontFamily: B, color: '#aaccff', fontSize: '14px', marginBottom: '12px' }}>{day.date}</div>
-                {/* Data fills in per day */}
                 {s >= i + 1 ? (
                   <>
                     <div style={{ fontFamily: B, color: '#d0e0ff', fontSize: '14px', fontWeight: 700, marginBottom: '12px', minHeight: '34px' }}>{w.label}</div>
@@ -171,7 +287,6 @@ function S3({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
 
 // ================================================================
 // SLIDE 4: ALMANAC
-// Table structure visible immediately, rows fill in progressively
 // ================================================================
 function S4({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
   const today = new Date();
@@ -181,14 +296,11 @@ function S4({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
   return (
     <div style={{ width: '88%' }}>
       <div style={{ background: PBG, border: PBD, padding: '24px 28px' }}>
-        {/* Table headers — always visible */}
         <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', marginBottom: '4px' }}>
           <div></div>
           <div style={{ fontFamily: T, color: '#ffd700', fontSize: '26px', fontWeight: 900, textAlign: 'center' }}>{JOURS[today.getDay()]}</div>
           <div style={{ fontFamily: T, color: '#ffd700', fontSize: '26px', fontWeight: 900, textAlign: 'center' }}>{JOURS[tomorrow.getDay()]}</div>
         </div>
-
-        {/* Sunrise row — step 1 */}
         <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', padding: '16px 0', borderTop: '1px solid #5080c0' }}>
           <div style={{ fontFamily: T, color: '#fff', fontSize: '24px', fontWeight: 900 }}>LEVER</div>
           {s >= 1 ? (
@@ -198,8 +310,6 @@ function S4({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
             </>
           ) : (<><div /><div /></>)}
         </div>
-
-        {/* Sunset row — step 2 */}
         <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr 1fr', padding: '16px 0', borderTop: '1px solid #5080c0' }}>
           <div style={{ fontFamily: T, color: '#fff', fontSize: '24px', fontWeight: 900 }}>COUCHER</div>
           {s >= 2 ? (
@@ -209,8 +319,6 @@ function S4({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
             </>
           ) : (<><div /><div /></>)}
         </div>
-
-        {/* Bottom conditions — step 3 */}
         <div style={{ borderTop: '1px solid #5080c0', paddingTop: '16px', marginTop: '8px', minHeight: '50px' }}>
           {s >= 3 && (
             <div className="grid grid-cols-3" style={{ fontFamily: B, fontSize: '21px', fontWeight: 700, gap: '6px' }}>
@@ -226,60 +334,112 @@ function S4({ d, onDone }: { d: FullWeatherData; onDone?: () => void }) {
 }
 
 // ================================================================
+// TICKER — multiple messages + badge
+// ================================================================
+function buildTicker(d: FullWeatherData): string {
+  const w = getWeatherInfo(d.current.weatherCode);
+  const wd = degToCardinal(d.current.windDirection);
+  const msgs = [
+    `${d.current.city.toUpperCase()} : ${d.current.temperature}°C ${w.label} ━ HUMIDITÉ ${d.current.humidity}% ━ VENT ${wd} ${d.current.windSpeed} KM/H`,
+    `PRÉVISIONS ━ ${d.daily.map(day => `${day.dayName}: ${day.tempMax}°/${day.tempMin}°`).join(' ━ ')}`,
+    `LEVER ${d.sun.sunrise} ━ COUCHER ${d.sun.sunset} ━ PRESSION ${d.current.pressure} HPA ━ VISIBILITÉ ${d.current.visibility} KM`,
+    `CONSEIL ━ ${w.label.includes('PLUIE') || w.label.includes('AVERSE') ? 'PENSEZ À PRENDRE UN PARAPLUIE' : w.label.includes('NEIGE') ? 'ATTENTION AUX ROUTES GLISSANTES' : 'BONNE JOURNÉE À TOUS'}`,
+  ];
+  return msgs.join(' ━━━ ');
+}
+
+// ================================================================
+// SLIDE COMPONENTS ARRAY for wipe rendering
+// ================================================================
+const SLIDES = [S1, S2, S3, S4] as const;
 const TITLES = ['conditions actuelles', "tomorrow's forecast", 'extended forecast', 'almanac'];
 const N = 4;
 
+// ================================================================
+// MAIN COMPONENT
+// ================================================================
 interface Props { data: FullWeatherData | null; loading: boolean; }
 
 export default function WeatherContent({ data, loading }: Props) {
   const [now, setNow] = useState(new Date());
+  const [started, setStarted] = useState(false); // loading sequence done
   const [idx, setIdx] = useState(0);
-  const [show, setShow] = useState(true);
   const idxRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Wipe transition state
+  const [wipe, setWipe] = useState<number | null>(null); // 0-1 progress, null = no wipe
+  const [outIdx, setOutIdx] = useState(0);
+  const [inIdx, setInIdx] = useState(0);
+  const wipeRaf = useRef(0);
+
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+
+  // Loading done callback
+  const onLoadingDone = useCallback(() => setStarted(true), []);
+
+  // Wipe animation using rAF
+  const startWipe = useCallback(() => {
+    const nextIdx = (idxRef.current + 1) % N;
+    setOutIdx(idxRef.current);
+    setInIdx(nextIdx);
+    const start = performance.now();
+
+    function animate(t: number) {
+      const p = Math.min((t - start) / WIPE_MS, 1);
+      setWipe(p);
+      if (p < 1) {
+        wipeRaf.current = requestAnimationFrame(animate);
+      } else {
+        // Wipe complete
+        idxRef.current = nextIdx;
+        setIdx(nextIdx);
+        setWipe(null);
+      }
+    }
+    wipeRaf.current = requestAnimationFrame(animate);
+  }, []);
 
   // Called by each slide when its build animation finishes
   const onSlideDone = useCallback(() => {
-    // Wait PAUSE ms after animation ends, then transition
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      setShow(false);
-      setTimeout(() => {
-        idxRef.current = (idxRef.current + 1) % N;
-        setIdx(idxRef.current);
-        setShow(true);
-      }, 250);
-    }, PAUSE);
+    timerRef.current = setTimeout(startWipe, PAUSE);
+  }, [startWipe]);
+
+  // Cleanup
+  useEffect(() => () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    cancelAnimationFrame(wipeRaf.current);
   }, []);
 
-  // Cleanup timer on unmount
-  useEffect(() => () => { if (timerRef.current) clearTimeout(timerRef.current); }, []);
-
-  if (loading || !data) {
+  // ---- LOADING SCREEN ----
+  if (!started) {
     return (
-      <div className="flex items-center justify-center" style={{ width: `${W}px`, height: `${H}px`, background: '#0a1530' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: T, color: '#88ddff', fontSize: '36px', fontWeight: 900, marginBottom: '24px' }}>THE VAPOR CHANNEL</div>
-          <div style={{ fontFamily: B, color: '#ffcc00', fontSize: '24px', fontWeight: 700 }}>CONNEXION AU SATELLITE...</div>
-          <div style={{ fontFamily: B, color: '#aaccff', fontSize: '18px', marginTop: '16px' }}>{fmtDate(now)} — {fmtTime(now)}</div>
-        </div>
-      </div>
+      <LoadingScreen
+        now={now}
+        dataReady={!loading && data !== null}
+        onReady={onLoadingDone}
+      />
     );
   }
 
-  const w = getWeatherInfo(data.current.weatherCode);
-  const wd = degToCardinal(data.current.windDirection);
-  const ticker = `BULLETIN MÉTÉO ━ ${data.current.city.toUpperCase()} : ${data.current.temperature}°C ${w.label} ━ HUMIDITÉ ${data.current.humidity}% ━ VENT ${wd} ${data.current.windSpeed} KM/H ━ THE VAPOR CHANNEL ━ MÉTÉO EN DIRECT ━`;
+  // Should not happen but guard
+  if (!data) return null;
+
+  const ticker = buildTicker(data);
+
+  // Determine which slides to render
+  const isWiping = wipe !== null;
+  const currentIdx = isWiping ? outIdx : idx;
 
   return (
     <div className="relative overflow-hidden" style={{ width: `${W}px`, height: `${H}px`, background: '#000' }}>
       <div className="absolute inset-0"><WeatherBackground /></div>
 
       <div className="relative z-10 flex flex-col h-full" style={{ padding: '24px 32px' }}>
-        {/* Header */}
+        {/* ===== HEADER ===== */}
         <header className="flex items-start justify-between" style={{ marginBottom: '12px' }}>
+          {/* Logo */}
           <div style={{ background: '#1a4a9a', border: '3px solid #7ab0e8', borderRadius: '6px', padding: '6px 12px' }}>
             <div style={{ textAlign: 'center', lineHeight: 1.15 }}>
               <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>THE</div>
@@ -287,36 +447,122 @@ export default function WeatherContent({ data, loading }: Props) {
               <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>CHANNEL</div>
             </div>
           </div>
+
+          {/* Slide title */}
           <div style={{ fontFamily: B, color: '#fff', fontSize: '32px', fontWeight: 700, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>
-            {TITLES[idx]}
+            {TITLES[currentIdx]}
           </div>
-          <div style={{ fontFamily: B, color: '#fff', textAlign: 'right', textShadow: '1px 1px 3px rgba(0,0,0,0.4)' }}>
-            <div style={{ fontSize: '17px', fontWeight: 700 }}>{fmtDate(now)}</div>
-            <div style={{ fontSize: '28px', fontWeight: 700 }}>{fmtTime(now)}</div>
+
+          {/* ===== BROADCAST CLOCK PANEL ===== */}
+          <div style={{
+            background: 'rgba(10, 20, 80, 0.92)',
+            border: '2px solid #6090d0',
+            borderRadius: '4px',
+            padding: '8px 16px',
+            textAlign: 'center',
+            minWidth: '200px',
+          }}>
+            <div style={{
+              fontFamily: T, color: '#aaccff', fontSize: '16px', fontWeight: 900,
+              letterSpacing: '0.12em', borderBottom: '1px solid #4070b0',
+              paddingBottom: '4px', marginBottom: '6px',
+            }}>
+              {fmtDate(now)}
+            </div>
+            <div style={{ fontFamily: T, display: 'flex', alignItems: 'baseline', justifyContent: 'center', gap: '2px' }}>
+              <span style={{ color: '#fff', fontSize: '36px', fontWeight: 900 }}>
+                {fmtHM(now)}
+              </span>
+              <span style={{ color: '#ffcc00', fontSize: '28px', fontWeight: 900 }}>
+                :{fmtSec(now)}
+              </span>
+              <span style={{ color: '#aaccff', fontSize: '16px', fontWeight: 700, marginLeft: '4px' }}>
+                {fmtAMPM(now)}
+              </span>
+            </div>
           </div>
         </header>
 
-        {/* Slide */}
-        <div className="flex-1 flex flex-col items-center justify-center">
-          {show && idx === 0 && <S1 key="s0" d={data} onDone={onSlideDone} />}
-          {show && idx === 1 && <S2 key="s1" d={data} onDone={onSlideDone} />}
-          {show && idx === 2 && <S3 key="s2" d={data} onDone={onSlideDone} />}
-          {show && idx === 3 && <S4 key="s3" d={data} onDone={onSlideDone} />}
+        {/* ===== SLIDE AREA WITH WIPE ===== */}
+        <div className="flex-1 flex flex-col items-center justify-center" style={{ position: 'relative', overflow: 'hidden' }}>
+          {isWiping ? (
+            <>
+              {/* Outgoing slide — clips from left */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                clipPath: `inset(0 0 0 ${wipe! * 100}%)`,
+              }}>
+                {renderSlide(outIdx, data, undefined)}
+              </div>
+              {/* Incoming slide — reveals from left */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                clipPath: `inset(0 ${(1 - wipe!) * 100}% 0 0)`,
+              }}>
+                {renderSlide(inIdx, data, undefined)}
+              </div>
+              {/* Wipe line */}
+              <div style={{
+                position: 'absolute', top: 0, bottom: 0,
+                left: `${wipe! * 100}%`,
+                width: '3px',
+                background: '#ffcc00',
+                boxShadow: '0 0 8px rgba(255, 204, 0, 0.6)',
+                zIndex: 10,
+              }} />
+            </>
+          ) : (
+            renderSlide(idx, data, onSlideDone)
+          )}
         </div>
 
-        {/* Bottom */}
+        {/* ===== BOTTOM: INFO BAR + TICKER ===== */}
         <div style={{ marginTop: 'auto' }}>
           <div style={{ fontFamily: B, color: '#fff', fontSize: '18px', fontWeight: 700, marginBottom: '4px' }}>
             ACTUELLEMENT À <span style={{ color: '#ffcc00' }}>{data.current.city.toUpperCase()}</span>
             <span style={{ marginLeft: '28px' }}>HUMIDITÉ <span style={{ color: '#ffcc00' }}>{data.current.humidity}%</span></span>
             <span style={{ marginLeft: '28px' }}>PT ROSÉE <span style={{ color: '#ffcc00' }}>{data.current.dewPoint}°</span></span>
           </div>
-          <div className="overflow-hidden whitespace-nowrap" style={{ background: 'rgba(8, 16, 60, 0.94)', borderTop: '3px solid #ffcc00', fontFamily: B, color: '#ffcc00', fontSize: '18px', fontWeight: 700, padding: '7px 14px' }}>
-            <div style={{ display: 'inline-block', animation: 'marquee 22s linear infinite' }}>{ticker}</div>
+
+          {/* Ticker bar with badge */}
+          <div style={{ display: 'flex', borderTop: '3px solid #ffcc00' }}>
+            {/* Fixed badge */}
+            <div style={{
+              background: 'linear-gradient(to bottom, #cc2200, #990000)',
+              color: '#fff', fontFamily: T, fontSize: '14px', fontWeight: 900,
+              padding: '7px 14px', whiteSpace: 'nowrap',
+              borderRight: '2px solid #ffcc00',
+              textShadow: '1px 1px 2px rgba(0,0,0,0.5)',
+              display: 'flex', alignItems: 'center',
+            }}>
+              MÉTÉO EN DIRECT
+            </div>
+            {/* Scrolling area */}
+            <div className="overflow-hidden whitespace-nowrap" style={{
+              flex: 1, background: 'rgba(8, 16, 60, 0.94)',
+              fontFamily: B, color: '#ffcc00', fontSize: '18px', fontWeight: 700, padding: '7px 14px',
+            }}>
+              <div style={{ display: 'inline-block', animation: 'marquee 36s linear infinite' }}>
+                {ticker}
+              </div>
+            </div>
           </div>
         </div>
       </div>
       <style>{`@keyframes marquee { from { transform: translateX(${W}px); } to { transform: translateX(-100%); } }`}</style>
     </div>
   );
+}
+
+// Helper to render a slide by index
+function renderSlide(i: number, data: FullWeatherData, onDone?: () => void) {
+  switch (i) {
+    case 0: return <S1 key={`s0-${onDone ? 'a' : 'w'}`} d={data} onDone={onDone} />;
+    case 1: return <S2 key={`s1-${onDone ? 'a' : 'w'}`} d={data} onDone={onDone} />;
+    case 2: return <S3 key={`s2-${onDone ? 'a' : 'w'}`} d={data} onDone={onDone} />;
+    case 3: return <S4 key={`s3-${onDone ? 'a' : 'w'}`} d={data} onDone={onDone} />;
+    default: return null;
+  }
 }

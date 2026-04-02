@@ -58,3 +58,9 @@ body {
 .clouds-drift {
   animation: drift 80s ease-in-out infinite alternate;
 }
+
+/* Loading screen pulse */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
