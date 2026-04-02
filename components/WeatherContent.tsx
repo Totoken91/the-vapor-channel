@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import WeatherBackground from '@/components/SynthwaveBackground';
 import TVStatic from '@/components/TVStatic';
 import { getWeatherInfo } from '@/lib/wmo-codes';
+import { useVaporwaveAudio } from '@/hooks/useVaporwaveAudio';
 import { degToCardinal } from '@/lib/wind-direction';
 import type { FullWeatherData } from '@/lib/weather';
 
@@ -369,6 +370,7 @@ export default function WeatherContent({ data, loading }: Props) {
   const [wiping, setWiping] = useState(false);
   const [outIdx, setOutIdx] = useState(0);
   const [inIdx, setInIdx] = useState(0);
+  const { playing: audioOn, toggle: toggleAudio } = useVaporwaveAudio();
 
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
@@ -425,13 +427,33 @@ export default function WeatherContent({ data, loading }: Props) {
       <div className="relative z-10 flex flex-col h-full" style={{ padding: '24px 32px' }}>
         {/* ===== HEADER ===== */}
         <header className="flex items-start justify-between" style={{ marginBottom: '12px' }}>
-          {/* Logo */}
-          <div style={{ background: '#1a4a9a', border: '3px solid #7ab0e8', borderRadius: '6px', padding: '6px 12px' }}>
-            <div style={{ textAlign: 'center', lineHeight: 1.15 }}>
-              <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>THE</div>
-              <div style={{ fontFamily: T, color: '#fff', fontSize: '18px', fontWeight: 900 }}>VAPOR</div>
-              <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>CHANNEL</div>
+          {/* Logo + audio toggle */}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+            <div style={{ background: '#1a4a9a', border: '3px solid #7ab0e8', borderRadius: '6px', padding: '6px 12px' }}>
+              <div style={{ textAlign: 'center', lineHeight: 1.15 }}>
+                <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>THE</div>
+                <div style={{ fontFamily: T, color: '#fff', fontSize: '18px', fontWeight: 900 }}>VAPOR</div>
+                <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>CHANNEL</div>
+              </div>
             </div>
+            <button
+              onClick={toggleAudio}
+              style={{
+                background: audioOn ? 'rgba(255, 204, 0, 0.2)' : 'rgba(100, 120, 180, 0.3)',
+                border: `1px solid ${audioOn ? '#ffcc00' : '#6080b0'}`,
+                borderRadius: '4px',
+                padding: '2px 10px',
+                cursor: 'pointer',
+                fontFamily: B,
+                fontSize: '11px',
+                fontWeight: 700,
+                color: audioOn ? '#ffcc00' : '#8899bb',
+                letterSpacing: '0.08em',
+                transition: 'all 0.3s',
+              }}
+            >
+              {audioOn ? '\u266B AUDIO ON' : '\u266B AUDIO OFF'}
+            </button>
           </div>
 
           {/* Slide title */}
