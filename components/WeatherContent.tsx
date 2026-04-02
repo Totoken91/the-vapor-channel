@@ -345,26 +345,38 @@ function S4({ d, onDone, frozen }: { d: FullWeatherData; onDone?: () => void; fr
 function buildTicker(d: FullWeatherData): string {
   const w = getWeatherInfo(d.current.weatherCode);
   const wd = degToCardinal(d.current.windDirection);
-  // Poetic interludes between weather data
+
   const poems = [
-    'le ciel respire doucement au-dessus des toits endormis',
-    'quelque part une fenêtre ouverte laisse entrer la lumière du soir',
-    'les nuages passent comme des pensées que personne ne retient',
-    'la pluie sur les vitres écrit des lettres que le vent efface',
-    'le soleil se couche et la ville devient une aquarelle',
-    'entre deux rafales le silence a le goût de la mer',
-    'les ombres s\'allongent comme des souvenirs sur le trottoir',
-    'le vent porte des fragments de conversations oubliées',
-    'la lune se lève et les rues deviennent des rivières de lumière',
-    'chaque flocon porte en lui le rêve d\'un voyage immobile',
+    'tu es exactement là où tu dois être en ce moment',
+    'chaque jour est une page blanche que tu peux remplir de lumière',
+    'le meilleur reste à venir, laisse-toi porter',
+    'respire, tout va bien, le ciel veille sur toi',
+    'tu as déjà surmonté tant de tempêtes, celle-ci passera aussi',
+    'même les jours gris préparent les plus beaux levers de soleil',
+    'ta présence illumine le monde plus que tu ne le crois',
+    'prends soin de toi comme tu prendrais soin d\'un ami cher',
+    'le bonheur est déjà là, dans les petites choses qui t\'entourent',
+    'demain sera un jour nouveau, plein de promesses silencieuses',
+    'tu mérites toute la douceur que ce monde peut offrir',
+    'laisse le vent emporter ce qui te pèse, garde ce qui te fait sourire',
   ];
-  const poem = poems[Math.floor(Date.now() / 60000) % poems.length].toUpperCase();
 
   const msgs = [
     `${d.current.city.toUpperCase()} : ${d.current.temperature}°C ${w.label} ━ HUMIDITÉ ${d.current.humidity}% ━ VENT ${wd} ${d.current.windSpeed} KM/H`,
-    poem,
+    poems[0].toUpperCase(),
+    poems[1].toUpperCase(),
     `PRÉVISIONS ━ ${d.daily.map(day => `${day.dayName}: ${day.tempMax}°/${day.tempMin}°`).join(' ━ ')}`,
+    poems[2].toUpperCase(),
+    poems[3].toUpperCase(),
     `LEVER ${d.sun.sunrise} ━ COUCHER ${d.sun.sunset} ━ PRESSION ${d.current.pressure} HPA ━ VISIBILITÉ ${d.current.visibility} KM`,
+    poems[4].toUpperCase(),
+    poems[5].toUpperCase(),
+    poems[6].toUpperCase(),
+    poems[7].toUpperCase(),
+    poems[8].toUpperCase(),
+    poems[9].toUpperCase(),
+    poems[10].toUpperCase(),
+    poems[11].toUpperCase(),
   ];
   return msgs.join(' ━━━ ');
 }
