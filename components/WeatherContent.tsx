@@ -513,13 +513,16 @@ export default function WeatherContent({ data, loading }: Props) {
       <div className="relative z-10 flex flex-col h-full" style={{ padding: '24px 32px' }}>
         {/* ===== HEADER ===== */}
         <header className="flex items-start justify-between" style={{ marginBottom: '12px' }}>
-          {/* Logo */}
-          <div style={{ background: '#1a4a9a', border: '3px solid #7ab0e8', borderRadius: '6px', padding: '6px 12px' }}>
-            <div style={{ textAlign: 'center', lineHeight: 1.15 }}>
-              <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>THE</div>
-              <div style={{ fontFamily: T, color: '#fff', fontSize: '18px', fontWeight: 900 }}>VAPOR</div>
-              <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>CHANNEL</div>
+          {/* Logo + mascot */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ background: '#1a4a9a', border: '3px solid #7ab0e8', borderRadius: '6px', padding: '6px 12px' }}>
+              <div style={{ textAlign: 'center', lineHeight: 1.15 }}>
+                <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>THE</div>
+                <div style={{ fontFamily: T, color: '#fff', fontSize: '18px', fontWeight: 900 }}>VAPOR</div>
+                <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>CHANNEL</div>
+              </div>
             </div>
+            <img src="/hampopo.png" alt="" style={{ width: '60px', height: '60px', objectFit: 'contain' }} />
           </div>
 
           {/* Slide title */}
