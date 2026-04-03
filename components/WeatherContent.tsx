@@ -562,11 +562,12 @@ export default function WeatherContent({ data, loading }: Props) {
     );
   }
 
+  // Ticker segments — memoized so poems don't reshuffle every render
+  const ticker = useMemo(() => data ? buildTicker(data) : [], [data]);
+
   // Should not happen but guard
   if (!data) return null;
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const ticker = useMemo(() => buildTicker(data), [data]);
   const titleIdx = wiping ? inIdx : idx;
 
   return (
