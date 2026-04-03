@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import WeatherBackground from '@/components/SynthwaveBackground';
 import TVStatic from '@/components/TVStatic';
 import { getWeatherInfo } from '@/lib/wmo-codes';
-import { useVaporwaveAudio } from '@/hooks/useVaporwaveAudio';
 import { degToCardinal } from '@/lib/wind-direction';
 import type { FullWeatherData } from '@/lib/weather';
 
@@ -508,7 +507,6 @@ function TickerCanvas({ segments, speed = 50 }: { segments: TickerSeg[]; speed?:
 interface Props { data: FullWeatherData | null; loading: boolean; }
 
 export default function WeatherContent({ data, loading }: Props) {
-  const [tvOn, setTvOn] = useState(false);
   const [now, setNow] = useState(new Date());
   const [started, setStarted] = useState(false);
   const [idx, setIdx] = useState(0);
@@ -519,7 +517,6 @@ export default function WeatherContent({ data, loading }: Props) {
   const [wiping, setWiping] = useState(false);
   const [outIdx, setOutIdx] = useState(0);
   const [inIdx, setInIdx] = useState(0);
-  const { start: startAudio } = useVaporwaveAudio();
 
   // Ticker segments — memoized so poems don't reshuffle every render
   // Must be here (before any early return) to respect React hooks rules
@@ -555,30 +552,6 @@ export default function WeatherContent({ data, loading }: Props) {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (wipeTimerRef.current) clearTimeout(wipeTimerRef.current);
   }, []);
-
-  // ---- TV OFF — press power to start ----
-  if (!tvOn) {
-    return (
-      <div className="relative flex items-center justify-center" style={{
-        width: `${W}px`, height: `${H}px`, background: '#0a0a0a', cursor: 'pointer',
-      }} onClick={() => { setTvOn(true); startAudio(); }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            fontSize: '64px', marginBottom: '20px',
-            filter: 'drop-shadow(0 0 20px rgba(255,204,0,0.4))',
-          }}>
-            &#9211;
-          </div>
-          <div style={{
-            fontFamily: T, color: '#555', fontSize: '16px', fontWeight: 900,
-            letterSpacing: '0.2em',
-          }}>
-            APPUYEZ POUR ALLUMER
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // ---- LOADING SCREEN ----
   if (!started) {
