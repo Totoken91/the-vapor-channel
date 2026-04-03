@@ -520,6 +520,10 @@ export default function WeatherContent({ data, loading }: Props) {
   const [inIdx, setInIdx] = useState(0);
   useVaporwaveAudio();
 
+  // Ticker segments — memoized so poems don't reshuffle every render
+  // Must be here (before any early return) to respect React hooks rules
+  const ticker = useMemo(() => data ? buildTicker(data) : [], [data]);
+
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
 
   const onLoadingDone = useCallback(() => setStarted(true), []);
@@ -561,9 +565,6 @@ export default function WeatherContent({ data, loading }: Props) {
       />
     );
   }
-
-  // Ticker segments — memoized so poems don't reshuffle every render
-  const ticker = useMemo(() => data ? buildTicker(data) : [], [data]);
 
   // Should not happen but guard
   if (!data) return null;
