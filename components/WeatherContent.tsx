@@ -343,7 +343,7 @@ function S4({ d, onDone, frozen }: { d: FullWeatherData; onDone?: () => void; fr
 // TICKER — multiple messages + badge
 // ================================================================
 // Ticker segment: text + color
-interface Seg { text: string; color: string }
+export interface TickerSeg { text: string; color: string }
 
 const YELLOW = '#ffcc00';
 const GREEN = '#44ff88';
@@ -352,11 +352,11 @@ const WHITE = '#ddeeff';
 const SP = '               ';
 
 // Simulated stock indices — seeded from the date
-function stockSegments(): Seg[] {
+function stockSegments(): TickerSeg[] {
   const d = new Date();
   const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
   function seededRand(s: number) { const x = Math.sin(s) * 43758.5453; return x - Math.floor(x); }
-  function idx(name: string, base: number, s: number): Seg[] {
+  function idx(name: string, base: number, s: number): TickerSeg[] {
     const pct = (seededRand(s) - 0.45) * 2.5; // -1.25% to +1.375%
     const up = pct >= 0;
     return [
@@ -374,19 +374,47 @@ function stockSegments(): Seg[] {
   ];
 }
 
-function buildTicker(d: FullWeatherData): Seg[] {
+// Pool of encouraging/poetic messages — shuffled at each build
+const ALL_POEMS = [
+  'TU ES EXACTEMENT LÀ OÙ TU DOIS ÊTRE EN CE MOMENT',
+  'CHAQUE JOUR EST UNE PAGE BLANCHE QUE TU PEUX REMPLIR DE LUMIÈRE',
+  'LE MEILLEUR RESTE À VENIR, LAISSE-TOI PORTER',
+  'RESPIRE, TOUT VA BIEN, LE CIEL VEILLE SUR TOI',
+  'MÊME LES JOURS GRIS PRÉPARENT LES PLUS BEAUX LEVERS DE SOLEIL',
+  'TA PRÉSENCE ILLUMINE LE MONDE PLUS QUE TU NE LE CROIS',
+  'IL Y A QUELQUE CHOSE DE BEAU QUI T\'ATTEND AU PROCHAIN TOURNANT',
+  'TU PORTES EN TOI TOUTE LA LUMIÈRE DONT TU AS BESOIN',
+  'LE MONDE EST PLUS DOUX PARCE QUE TU Y ES',
+  'CHAQUE ORAGE FINIT PAR LAISSER PLACE À UN CIEL LAVÉ DE BLEU',
+  'TU N\'AS PAS BESOIN D\'ÊTRE PARFAIT POUR ÊTRE EXTRAORDINAIRE',
+  'QUELQU\'UN QUELQUE PART SOURIT EN PENSANT À TOI',
+  'LA VIE T\'A CHOISI POUR VIVRE CE JOUR PRÉCIS',
+  'LAISSE LE VENT EMPORTER CE QUI TE PÈSE',
+  'TU ES PLUS FORT QUE TOUT CE QUI TE FAIT DOUTER',
+  'DEMAIN LE SOLEIL SE LÈVERA AUSSI POUR TOI',
+  'DANS LE SILENCE DU SOIR, TON CŒUR SAIT DÉJÀ LE CHEMIN',
+  'CHAQUE BATTEMENT EST UNE PROMESSE QUE LA VIE TE FAIT',
+  'TU MÉRITES TOUTE LA DOUCEUR QUE CE MONDE PEUT OFFRIR',
+  'LES ÉTOILES BRILLENT MÊME QUAND TU NE LES VOIS PAS',
+];
+
+// Fisher-Yates shuffle
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+export function buildTicker(d: FullWeatherData): TickerSeg[] {
   const w = getWeatherInfo(d.current.weatherCode);
   const wd = degToCardinal(d.current.windDirection);
-  const sep: Seg = { text: SP, color: YELLOW };
+  const sep: TickerSeg = { text: SP, color: YELLOW };
 
-  const poems = [
-    'TU ES EXACTEMENT LÀ OÙ TU DOIS ÊTRE EN CE MOMENT',
-    'CHAQUE JOUR EST UNE PAGE BLANCHE QUE TU PEUX REMPLIR DE LUMIÈRE',
-    'LE MEILLEUR RESTE À VENIR, LAISSE-TOI PORTER',
-    'RESPIRE, TOUT VA BIEN, LE CIEL VEILLE SUR TOI',
-    'MÊME LES JOURS GRIS PRÉPARENT LES PLUS BEAUX LEVERS DE SOLEIL',
-    'TA PRÉSENCE ILLUMINE LE MONDE PLUS QUE TU NE LE CROIS',
-  ];
+  // Pick 6 random poems from the pool, different every time
+  const poems = shuffle(ALL_POEMS).slice(0, 6);
 
   return [
     { text: `${d.current.city.toUpperCase()} : ${d.current.temperature}°C ${w.label}   HUMIDITÉ ${d.current.humidity}%   VENT ${wd} ${d.current.windSpeed} KM/H`, color: YELLOW },
@@ -412,69 +440,6 @@ function buildTicker(d: FullWeatherData): Seg[] {
 
 const TITLES = ['conditions actuelles', "tomorrow's forecast", 'extended forecast', 'almanac'];
 const N = 4;
-
-// ================================================================
-// TICKER CANVAS — draws colored segments on a 2D canvas at 60fps.
-// html2canvas copies canvas pixels instantly (no DOM re-render).
-// ================================================================
-function TickerCanvas({ segments, speed = 50 }: { segments: Seg[]; speed?: number }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const xRef = useRef<number | null>(null);
-  const totalWidthRef = useRef(0);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const parent = canvas.parentElement;
-    if (!parent) return;
-    const w = parent.offsetWidth;
-    const h = parent.offsetHeight;
-    canvas.width = w;
-    canvas.height = h;
-
-    const FONT = 'bold 18px Arial, Helvetica Neue, sans-serif';
-    ctx.font = FONT;
-
-    // Pre-measure each segment
-    const measured = segments.map(s => ({ ...s, w: ctx.measureText(s.text).width }));
-    totalWidthRef.current = measured.reduce((sum, s) => sum + s.w, 0);
-    if (xRef.current === null) xRef.current = w;
-
-    let raf: number;
-    let last = performance.now();
-
-    function draw(now: number) {
-      const dt = (now - last) / 1000;
-      last = now;
-
-      xRef.current! -= speed * dt;
-      if (xRef.current! < -totalWidthRef.current) xRef.current = w;
-
-      ctx!.clearRect(0, 0, w, h);
-      ctx!.font = FONT;
-      ctx!.textBaseline = 'middle';
-
-      let x = xRef.current!;
-      for (const seg of measured) {
-        // Skip segments entirely off-screen
-        if (x + seg.w > 0 && x < w) {
-          ctx!.fillStyle = seg.color;
-          ctx!.fillText(seg.text, x, h / 2);
-        }
-        x += seg.w;
-      }
-
-      raf = requestAnimationFrame(draw);
-    }
-    raf = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(raf);
-  }, [segments, speed]);
-
-  return <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />;
-}
 
 // ================================================================
 // MAIN COMPONENT
@@ -539,7 +504,6 @@ export default function WeatherContent({ data, loading }: Props) {
   // Should not happen but guard
   if (!data) return null;
 
-  const ticker = buildTicker(data);
   const titleIdx = wiping ? inIdx : idx;
 
   return (
@@ -650,9 +614,8 @@ export default function WeatherContent({ data, loading }: Props) {
             <span style={{ marginLeft: '28px' }}>PT ROSÉE <span style={{ color: '#ffcc00' }}>{data.current.dewPoint}°</span></span>
           </div>
 
-          {/* Ticker bar with badge */}
+          {/* Ticker bar — placeholder, actual ticker is rendered as native HTML overlay */}
           <div style={{ display: 'flex', borderTop: '3px solid #ffcc00' }}>
-            {/* Fixed badge */}
             <div style={{
               background: 'linear-gradient(to bottom, #cc2200, #990000)',
               color: '#fff', fontFamily: T, fontSize: '14px', fontWeight: 900,
@@ -663,13 +626,7 @@ export default function WeatherContent({ data, loading }: Props) {
             }}>
               MÉTÉO EN DIRECT
             </div>
-            {/* Scrolling area — canvas-based for smooth scrolling with html2canvas */}
-            <div style={{
-              flex: 1, background: 'rgba(8, 16, 60, 0.94)',
-              height: '34px', overflow: 'hidden',
-            }}>
-              <TickerCanvas segments={ticker} speed={50} />
-            </div>
+            <div style={{ flex: 1, background: 'rgba(8, 16, 60, 0.94)', height: '34px' }} />
           </div>
         </div>
       </div>
