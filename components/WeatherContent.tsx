@@ -504,9 +504,9 @@ function TickerCanvas({ segments, speed = 50 }: { segments: TickerSeg[]; speed?:
 // ================================================================
 // MAIN COMPONENT
 // ================================================================
-interface Props { data: FullWeatherData | null; loading: boolean; }
+interface Props { data: FullWeatherData | null; loading: boolean; tvOn?: boolean; }
 
-export default function WeatherContent({ data, loading }: Props) {
+export default function WeatherContent({ data, loading, tvOn = true }: Props) {
   const [now, setNow] = useState(new Date());
   const [started, setStarted] = useState(false);
   const [idx, setIdx] = useState(0);
@@ -552,6 +552,30 @@ export default function WeatherContent({ data, loading }: Props) {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (wipeTimerRef.current) clearTimeout(wipeTimerRef.current);
   }, []);
+
+  // ---- TV OFF ----
+  if (!tvOn) {
+    return (
+      <div className="relative flex items-center justify-center" style={{
+        width: `${W}px`, height: `${H}px`, background: '#0a0a0a',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            fontSize: '64px', marginBottom: '20px',
+            filter: 'drop-shadow(0 0 20px rgba(255,204,0,0.4))',
+          }}>
+            &#9211;
+          </div>
+          <div style={{
+            fontFamily: T, color: '#555', fontSize: '16px', fontWeight: 900,
+            letterSpacing: '0.2em',
+          }}>
+            APPUYEZ POUR ALLUMER
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ---- LOADING SCREEN ----
   if (!started) {
