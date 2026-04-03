@@ -442,6 +442,67 @@ const TITLES = ['conditions actuelles', "tomorrow's forecast", 'extended forecas
 const N = 4;
 
 // ================================================================
+// TICKER CANVAS — draws colored segments on a 2D canvas at 60fps.
+// html2canvas copies canvas pixels instantly (no DOM re-render).
+// ================================================================
+function TickerCanvas({ segments, speed = 50 }: { segments: TickerSeg[]; speed?: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const xRef = useRef<number | null>(null);
+  const totalWidthRef = useRef(0);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const w = parent.offsetWidth;
+    const h = parent.offsetHeight;
+    canvas.width = w;
+    canvas.height = h;
+
+    const FONT = 'bold 18px Arial, Helvetica Neue, sans-serif';
+    ctx.font = FONT;
+
+    const measured = segments.map(s => ({ ...s, w: ctx.measureText(s.text).width }));
+    totalWidthRef.current = measured.reduce((sum, s) => sum + s.w, 0);
+    if (xRef.current === null) xRef.current = w;
+
+    let raf: number;
+    let last = performance.now();
+
+    function draw(now: number) {
+      const dt = (now - last) / 1000;
+      last = now;
+
+      xRef.current! -= speed * dt;
+      if (xRef.current! < -totalWidthRef.current) xRef.current = w;
+
+      ctx!.clearRect(0, 0, w, h);
+      ctx!.font = FONT;
+      ctx!.textBaseline = 'middle';
+
+      let x = xRef.current!;
+      for (const seg of measured) {
+        if (x + seg.w > 0 && x < w) {
+          ctx!.fillStyle = seg.color;
+          ctx!.fillText(seg.text, x, h / 2);
+        }
+        x += seg.w;
+      }
+
+      raf = requestAnimationFrame(draw);
+    }
+    raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [segments, speed]);
+
+  return <canvas ref={canvasRef} style={{ display: 'block', width: '100%', height: '100%' }} />;
+}
+
+// ================================================================
 // MAIN COMPONENT
 // ================================================================
 interface Props { data: FullWeatherData | null; loading: boolean; }
@@ -504,6 +565,7 @@ export default function WeatherContent({ data, loading }: Props) {
   // Should not happen but guard
   if (!data) return null;
 
+  const ticker = buildTicker(data);
   const titleIdx = wiping ? inIdx : idx;
 
   return (
@@ -617,7 +679,7 @@ export default function WeatherContent({ data, loading }: Props) {
             <span style={{ marginLeft: '28px' }}>PT ROSÉE <span style={{ color: '#ffcc00' }}>{data.current.dewPoint}°</span></span>
           </div>
 
-          {/* Ticker bar — placeholder, actual ticker is rendered as native HTML overlay */}
+          {/* Ticker bar with badge */}
           <div style={{ display: 'flex', borderTop: '3px solid #ffcc00' }}>
             <div style={{
               background: 'linear-gradient(to bottom, #cc2200, #990000)',
@@ -629,7 +691,12 @@ export default function WeatherContent({ data, loading }: Props) {
             }}>
               MÉTÉO EN DIRECT
             </div>
-            <div style={{ flex: 1, background: 'rgba(8, 16, 60, 0.94)', height: '34px' }} />
+            <div style={{
+              flex: 1, background: 'rgba(8, 16, 60, 0.94)',
+              height: '34px', overflow: 'hidden',
+            }}>
+              <TickerCanvas segments={ticker} speed={50} />
+            </div>
           </div>
         </div>
       </div>
