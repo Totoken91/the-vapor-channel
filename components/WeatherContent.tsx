@@ -584,7 +584,7 @@ export default function WeatherContent({ data, loading }: Props) {
                 <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>CHANNEL</div>
               </div>
             </div>
-            <img src="/hampopo.png" alt="" style={{ width: '60px', height: '60px', objectFit: 'contain' }} />
+            <img src="/hampopo.png" alt="" style={{ width: '120px', height: '120px', objectFit: 'contain' }} />
           </div>
 
           {/* Slide title */}
