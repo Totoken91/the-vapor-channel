@@ -585,7 +585,7 @@ export default function WeatherContent({ data, loading }: Props) {
                 <div style={{ fontFamily: T, color: '#fff', fontSize: '14px', fontWeight: 900 }}>CHANNEL</div>
               </div>
             </div>
-            <img src="/hampopo.png" alt="" style={{ width: '120px', height: '120px', objectFit: 'contain' }} />
+            <img src="/hampopo.png" alt="" className="hampopo" style={{ width: '120px', height: '120px', objectFit: 'contain' }} />
           </div>
 
           {/* Slide title */}
@@ -702,6 +702,8 @@ export default function WeatherContent({ data, loading }: Props) {
         </div>
       </div>
       <style>{`
+.hampopo { transition: transform 0.3s ease; }
+.hampopo:hover { transform: scale(1.15) rotate(-5deg); }
 @keyframes wipeReveal { from { width: 0%; } to { width: 100%; } }
         @keyframes wipeHide { from { width: 100%; } to { width: 0%; } }
         @keyframes wipeLine { from { left: 0%; } to { left: 100%; } }
