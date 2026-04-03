@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import WeatherBackground from '@/components/SynthwaveBackground';
 import TVStatic from '@/components/TVStatic';
 import { getWeatherInfo } from '@/lib/wmo-codes';
@@ -565,7 +565,8 @@ export default function WeatherContent({ data, loading }: Props) {
   // Should not happen but guard
   if (!data) return null;
 
-  const ticker = buildTicker(data);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const ticker = useMemo(() => buildTicker(data), [data]);
   const titleIdx = wiping ? inIdx : idx;
 
   return (
